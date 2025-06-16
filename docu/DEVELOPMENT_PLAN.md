@@ -95,15 +95,15 @@
 - No console errors with physics interactions
 
 **PHASE 2 TESTING CHECKLIST**:
-- [ ] Player spawns at correct starting position
-- [ ] Player falls with gravity when game starts
-- [ ] Player bounces realistically off ground
-- [ ] Player bounces off left and right walls
-- [ ] Camera stays fixed when player moves horizontally
-- [ ] Camera scrolls up when player reaches top 25% of screen
-- [ ] Camera never scrolls downward once it has moved up
-- [ ] Player state changes are logged correctly
-- [ ] Physics interactions are smooth and stable
+- [x] Player spawns at correct starting position
+- [x] Player falls with gravity when game starts
+- [x] Player bounces realistically off ground
+- [x] Player bounces off left and right walls
+- [x] Camera stays fixed when player moves horizontally
+- [x] Camera scrolls up when player reaches top 25% of screen
+- [x] Camera never scrolls downward once it has moved up
+- [x] Player state changes are logged correctly
+- [x] Physics interactions are smooth and stable
 
 ## Phase 3: Rope System Core Implementation
 **Goal**: Functional rope attachment, swinging, and release mechanics

@@ -31,11 +31,112 @@ class Renderer {
         this.ctx.stroke();
     }
     
-    render() {
+    render(camera, player, physics, rope) {
         this.clear();
         
-        this.drawRect(100, 100, 50, 50, '#3498db');
-        this.drawCircle(200, 200, 25, '#e74c3c');
-        this.drawLine(0, 0, this.canvas.width, this.canvas.height, '#95a5a6');
+        // Render game world with camera transform
+        this.ctx.save();
+        const transform = camera.getTransform();
+        this.ctx.translate(transform.x, transform.y);
+        
+        this.renderBoundaries(physics.getBoundaries());
+        this.renderPlayer(player);
+        this.renderRope(player, rope);
+        this.renderVelocityArrow(player);
+        
+        this.ctx.restore();
+        
+        // Render debug UI in screen space (no camera transform)
+        this.renderDebugUI(camera, player, rope);
+    }
+    
+    renderVelocityArrow(player) {
+        const pos = player.getPosition();
+        const vel = player.getVelocity();
+        const scale = 10;
+        
+        if (Math.abs(vel.x) > 0.1 || Math.abs(vel.y) > 0.1) {
+            const endX = pos.x + vel.x * scale;
+            const endY = pos.y + vel.y * scale;
+            
+            this.drawLine(pos.x, pos.y, endX, endY, '#f39c12', 3);
+            
+            const arrowSize = 5;
+            const angle = Math.atan2(vel.y, vel.x);
+            const arrowX1 = endX - arrowSize * Math.cos(angle - Math.PI/6);
+            const arrowY1 = endY - arrowSize * Math.sin(angle - Math.PI/6);
+            const arrowX2 = endX - arrowSize * Math.cos(angle + Math.PI/6);
+            const arrowY2 = endY - arrowSize * Math.sin(angle + Math.PI/6);
+            
+            this.drawLine(endX, endY, arrowX1, arrowY1, '#f39c12', 3);
+            this.drawLine(endX, endY, arrowX2, arrowY2, '#f39c12', 3);
+        }
+    }
+    
+    renderRope(player, rope) {
+        if (rope.isAttached()) {
+            const playerPos = player.getPosition();
+            const attachmentPoint = rope.getAttachmentPoint();
+            
+            // Draw rope line
+            this.drawLine(
+                playerPos.x, 
+                playerPos.y, 
+                attachmentPoint.x, 
+                attachmentPoint.y, 
+                '#8B4513', // Brown color for rope
+                3
+            );
+            
+            // Draw attachment point indicator
+            this.drawCircle(attachmentPoint.x, attachmentPoint.y, 3, '#FF6B35');
+        }
+    }
+    
+    renderDebugUI(camera, player, rope) {
+        this.ctx.fillStyle = '#2c3e50';
+        this.ctx.font = '14px monospace';
+        
+        const pos = player.getPosition();
+        const vel = player.getVelocity();
+        const camPos = camera.getPosition();
+        const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+        
+        const debugInfo = [
+            `Player State: ${player.getState()}`,
+            `Player Pos: (${Math.round(pos.x)}, ${Math.round(pos.y)})`,
+            `Player Vel: (${Math.round(vel.x * 10)/10}, ${Math.round(vel.y * 10)/10})`,
+            `Player Speed: ${Math.round(speed * 10)/10}`,
+            `Camera Pos: (${Math.round(camPos.x)}, ${Math.round(camPos.y)})`,
+            `Rope State: ${rope.getState()}`,
+            `Rope Length: ${rope.isAttached() ? Math.round(rope.getRopeLength()) : 'N/A'}`,
+            `Controls: LMB to fire rope, U/H/J/K test movement`
+        ];
+        
+        debugInfo.forEach((text, index) => {
+            this.ctx.fillText(text, 10, 20 + index * 18);
+        });
+    }
+    
+    renderBoundaries(boundaries) {
+        boundaries.forEach(boundary => {
+            const pos = boundary.position;
+            const bounds = boundary.bounds;
+            const width = bounds.max.x - bounds.min.x;
+            const height = bounds.max.y - bounds.min.y;
+            
+            this.drawRect(
+                pos.x - width/2, 
+                pos.y - height/2, 
+                width, 
+                height, 
+                '#34495e'
+            );
+        });
+    }
+    
+    renderPlayer(player) {
+        const pos = player.getPosition();
+        this.drawCircle(pos.x, pos.y, player.getRadius(), '#e74c3c');
     }
 }

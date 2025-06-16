@@ -8,6 +8,9 @@ class Game {
         
         this.input = new InputManager(this.canvas);
         this.physics = new PhysicsManager();
+        this.camera = new Camera(this.canvas.width, this.canvas.height);
+        this.player = new Player(400, 100, this.physics);
+        this.rope = new Rope(this.physics);
         this.renderer = new Renderer(this.canvas);
         
         this.state = 'running';
@@ -46,10 +49,13 @@ class Game {
     update(deltaTime) {
         this.input.update();
         this.physics.update(deltaTime);
+        this.player.update(deltaTime, this.input);
+        this.rope.update(this.player, this.input, this.camera);
+        this.camera.update(this.player.getPosition());
     }
     
     render() {
-        this.renderer.render();
+        this.renderer.render(this.camera, this.player, this.physics, this.rope);
     }
 }
 
