@@ -78,17 +78,40 @@ class Renderer {
             const playerPos = player.getPosition();
             const attachmentPoint = rope.getAttachmentPoint();
             const ropeLength = rope.getRopeLength();
+            const pivotPoints = rope.getPivotPoints();
+            const ropeSegments = rope.getRopeSegments(playerPos);
             
-            // Draw rope line with thickness based on tension
+            // Draw rope thickness based on total length
             const ropeThickness = Math.max(2, Math.min(5, ropeLength / 50));
-            this.drawLine(
-                playerPos.x, 
-                playerPos.y, 
-                attachmentPoint.x, 
-                attachmentPoint.y, 
-                '#8B4513', // Brown color for rope
-                ropeThickness
-            );
+            
+            // Draw multi-segment rope
+            if (ropeSegments.length > 0) {
+                for (const segment of ropeSegments) {
+                    this.drawLine(
+                        segment.start.x, 
+                        segment.start.y, 
+                        segment.end.x, 
+                        segment.end.y, 
+                        '#8B4513', // Brown color for rope
+                        ropeThickness
+                    );
+                }
+            } else {
+                // Fallback: single segment rope
+                this.drawLine(
+                    playerPos.x, 
+                    playerPos.y, 
+                    attachmentPoint.x, 
+                    attachmentPoint.y, 
+                    '#8B4513', // Brown color for rope
+                    ropeThickness
+                );
+            }
+            
+            // Draw pivot points
+            for (const pivot of pivotPoints) {
+                this.drawCircle(pivot.x, pivot.y, 6, '#FF0000'); // Red pivot points
+            }
             
             // Draw attachment point indicator
             this.drawCircle(attachmentPoint.x, attachmentPoint.y, 4, '#FF6B35');
@@ -100,6 +123,15 @@ class Renderer {
                 `${Math.round(ropeLength)}px`, 
                 attachmentPoint.x + 8, 
                 attachmentPoint.y - 8
+            );
+            
+            // Debug: Show number of segments and pivots
+            this.ctx.fillStyle = '#FFFF00';
+            this.ctx.font = '12px monospace';
+            this.ctx.fillText(
+                `Segments: ${ropeSegments.length} | Pivots: ${pivotPoints.length}`, 
+                10, 
+                150
             );
         }
     }

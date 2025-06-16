@@ -9,13 +9,20 @@ class Rope {
         
         this.currentState = this.states.DETACHED;
         this.maxRange = 200;
+        this.minPivotDistance = 15; // Minimum distance between pivot points
         
-        // Attachment data
+        // Multi-segment rope data
+        this.segments = []; // Array of rope segments: [{start, end, constraint, length}]
+        this.pivotPoints = []; // Array of pivot points: [{x, y, body}]
         this.attachmentPoint = null;
-        this.constraint = null;
         this.attachedBody = null;
+        this.totalRopeLength = 0;
+        this.playerBody = null; // Reference to player body for multi-segment constraints
         
-        console.log('Rope system initialized with max range:', this.maxRange);
+        // Legacy single constraint (will be removed when segments are active)
+        this.constraint = null;
+        
+        console.log('Multi-segment rope system initialized with max range:', this.maxRange);
     }
     
     update(player, input, camera) {
@@ -41,6 +48,9 @@ class Rope {
         } else {
             // Handle A/D key swing controls while attached
             this.handleSwingControls(player, input);
+            
+            // Check for environmental collisions and update pivot points
+            this.updateEnvironmentalCollision(player);
         }
     }
     
@@ -321,9 +331,13 @@ class Rope {
         }
         
         try {
+            // Store player body reference for multi-segment system
+            this.playerBody = player.getBody();
+            this.totalRopeLength = calculatedLength;
+            
             // Create Matter.js constraint with tuned parameters for realistic swing
             this.constraint = Matter.Constraint.create({
-                bodyA: player.getBody(),
+                bodyA: this.playerBody,
                 pointA: { x: 0, y: 0 }, // Center of player body
                 pointB: this.attachmentPoint,
                 stiffness: 1.0,  // High stiffness for rope-like behavior
@@ -380,8 +394,14 @@ class Rope {
             console.log('=== END ROPE RELEASE DEBUG ===');
         }
         
+        // Clear multi-segment data
+        this.clearAllConstraints();
+        this.pivotPoints = [];
+        this.segments = [];
         this.attachmentPoint = null;
         this.attachedBody = null;
+        this.playerBody = null;
+        this.totalRopeLength = 0;
         this.currentState = this.states.DETACHED;
         
         console.log('Rope released - momentum conserved');
@@ -392,6 +412,230 @@ class Rope {
             Math.pow(attachmentPoint.x - playerPos.x, 2) + 
             Math.pow(attachmentPoint.y - playerPos.y, 2)
         );
+    }
+    
+    updateEnvironmentalCollision(player) {
+        if (!this.isAttached() || !this.attachmentPoint) return;
+        
+        const playerPos = player.getPosition();
+        
+        // For now, use simple single-segment approach with collision detection
+        // This will be expanded to full multi-segment in subsequent steps
+        
+        // Get all static bodies (walls, platforms, etc.)
+        const staticBodies = this.getStaticBodies();
+        
+        // Check if current rope path intersects any obstacles
+        const ropeSegments = this.getCurrentRopeSegments(playerPos);
+        
+        for (let segmentIndex = 0; segmentIndex < ropeSegments.length; segmentIndex++) {
+            const segment = ropeSegments[segmentIndex];
+            this.checkSegmentCollision(segment, staticBodies, segmentIndex);
+        }
+    }
+    
+    getCurrentRopeSegments(playerPos) {
+        // Current implementation: single segment from player to attachment
+        // TODO: Expand to multi-segment when pivot points are added
+        if (this.pivotPoints.length === 0) {
+            return [{
+                start: playerPos,
+                end: this.attachmentPoint,
+                index: 0
+            }];
+        } else {
+            // Multi-segment: player -> pivot1 -> pivot2 -> ... -> attachment
+            const segments = [];
+            let currentStart = playerPos;
+            
+            for (let i = 0; i < this.pivotPoints.length; i++) {
+                segments.push({
+                    start: currentStart,
+                    end: this.pivotPoints[i],
+                    index: i
+                });
+                currentStart = this.pivotPoints[i];
+            }
+            
+            // Final segment from last pivot to attachment
+            segments.push({
+                start: currentStart,
+                end: this.attachmentPoint,
+                index: this.pivotPoints.length
+            });
+            
+            return segments;
+        }
+    }
+    
+    checkSegmentCollision(segment, staticBodies, segmentIndex) {
+        for (const body of staticBodies) {
+            const intersection = this.calculateBodyIntersection(segment.start, segment.end, body);
+            
+            if (intersection) {
+                if (this.shouldCreatePivot(intersection, segmentIndex)) {
+                    this.createPivotPoint(intersection, body, segmentIndex);
+                    console.log('Created pivot point at:', intersection);
+                    break; // Only create one pivot per segment per frame
+                }
+            }
+        }
+    }
+    
+    shouldCreatePivot(intersectionPoint, segmentIndex) {
+        // Check if this intersection point is far enough from existing pivots
+        for (const pivot of this.pivotPoints) {
+            const distance = Math.sqrt(
+                Math.pow(intersectionPoint.x - pivot.x, 2) + 
+                Math.pow(intersectionPoint.y - pivot.y, 2)
+            );
+            
+            if (distance < this.minPivotDistance) {
+                return false; // Too close to existing pivot
+            }
+        }
+        
+        return true;
+    }
+    
+    createPivotPoint(point, body, segmentIndex) {
+        const newPivot = {
+            x: point.x,
+            y: point.y,
+            body: body
+        };
+        
+        // Insert pivot at the correct position in the array
+        this.pivotPoints.splice(segmentIndex, 0, newPivot);
+        
+        // Rebuild constraint system with new pivot
+        this.rebuildConstraintSystem();
+    }
+    
+    rebuildConstraintSystem() {
+        // Remove all existing constraints
+        this.clearAllConstraints();
+        
+        // For now, still use single constraint while testing
+        // TODO: Implement full multi-segment constraints
+        if (this.pivotPoints.length === 0) {
+            // No pivots: use original single constraint system
+            this.createSingleConstraint();
+        } else {
+            // Has pivots: use multi-segment constraint system
+            this.createMultiSegmentConstraints();
+        }
+    }
+    
+    clearAllConstraints() {
+        if (this.constraint) {
+            this.physicsManager.removeConstraint(this.constraint);
+            this.constraint = null;
+        }
+        
+        // Clear any multi-segment constraints
+        for (const segment of this.segments) {
+            if (segment.constraint) {
+                this.physicsManager.removeConstraint(segment.constraint);
+            }
+        }
+        this.segments = [];
+    }
+    
+    createSingleConstraint() {
+        // Use the existing single constraint creation logic
+        const playerBody = this.getCurrentPlayerBody();
+        if (playerBody && this.attachmentPoint) {
+            this.constraint = Matter.Constraint.create({
+                bodyA: playerBody,
+                pointA: { x: 0, y: 0 },
+                pointB: this.attachmentPoint,
+                stiffness: 1.0,
+                damping: 0.05,
+                length: this.totalRopeLength || this.calculateRopeLength(
+                    { x: playerBody.position.x, y: playerBody.position.y }, 
+                    this.attachmentPoint
+                )
+            });
+            
+            this.physicsManager.addConstraint(this.constraint);
+        }
+    }
+    
+    createMultiSegmentConstraints() {
+        const playerBody = this.getCurrentPlayerBody();
+        if (!playerBody) return;
+        
+        const allPoints = [
+            { x: playerBody.position.x, y: playerBody.position.y, body: playerBody },
+            ...this.pivotPoints,
+            { x: this.attachmentPoint.x, y: this.attachmentPoint.y, body: null }
+        ];
+        
+        // Create constraints between consecutive points
+        for (let i = 0; i < allPoints.length - 1; i++) {
+            const startPoint = allPoints[i];
+            const endPoint = allPoints[i + 1];
+            
+            const segmentLength = Math.sqrt(
+                Math.pow(endPoint.x - startPoint.x, 2) + 
+                Math.pow(endPoint.y - startPoint.y, 2)
+            );
+            
+            const constraint = Matter.Constraint.create({
+                bodyA: startPoint.body,
+                pointA: startPoint.body ? { x: 0, y: 0 } : null,
+                pointB: endPoint.body ? endPoint : { x: endPoint.x, y: endPoint.y },
+                stiffness: 1.0,
+                damping: 0.05,
+                length: segmentLength
+            });
+            
+            this.physicsManager.addConstraint(constraint);
+            
+            this.segments.push({
+                start: startPoint,
+                end: endPoint,
+                constraint: constraint,
+                length: segmentLength
+            });
+        }
+        
+        console.log(`Created ${this.segments.length} rope segments with ${this.pivotPoints.length} pivots`);
+    }
+    
+    getCurrentPlayerBody() {
+        // Use stored player body reference
+        return this.playerBody;
+    }
+    
+    getStaticBodies() {
+        const bodies = Matter.Composite.allBodies(this.physicsManager.getWorld());
+        return bodies.filter(body => body.isStatic);
+    }
+    
+    findClosestIntersection(intersections, startPoint) {
+        if (intersections.length === 0) return null;
+        
+        let closest = intersections[0];
+        let minDistance = Math.sqrt(
+            Math.pow(closest.x - startPoint.x, 2) + 
+            Math.pow(closest.y - startPoint.y, 2)
+        );
+        
+        for (let i = 1; i < intersections.length; i++) {
+            const distance = Math.sqrt(
+                Math.pow(intersections[i].x - startPoint.x, 2) + 
+                Math.pow(intersections[i].y - startPoint.y, 2)
+            );
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                closest = intersections[i];
+            }
+        }
+        
+        return closest;
     }
     
     // Getters for rendering and state checking
@@ -408,6 +652,22 @@ class Rope {
     }
     
     getRopeLength() {
-        return this.constraint ? this.constraint.length : 0;
+        if (this.segments.length > 0) {
+            // Multi-segment: sum all segment lengths
+            return this.segments.reduce((total, segment) => total + segment.length, 0);
+        } else {
+            // Single segment: use constraint length
+            return this.constraint ? this.constraint.length : 0;
+        }
+    }
+    
+    // New getters for multi-segment rendering
+    getPivotPoints() {
+        return this.pivotPoints;
+    }
+    
+    getRopeSegments(playerPos) {
+        if (!this.isAttached()) return [];
+        return this.getCurrentRopeSegments(playerPos);
     }
 }
