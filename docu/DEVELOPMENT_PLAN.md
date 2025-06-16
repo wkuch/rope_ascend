@@ -118,9 +118,13 @@
 
 ### Step 3.2: Rope Physics & Constraint Management
 - Proper constraint stiffness and damping for realistic swing
+- **A/D Key Swing Controls** (Enhancement added during development):
+  - A key: Clockwise angular momentum around attachment point
+  - D key: Counterclockwise angular momentum around attachment point
+  - Active swing control for building momentum while attached
 - Rope release on LMB release with momentum conservation
 - Constraint cleanup and state management
-- **Verification**: Natural pendulum swing, clean release with proper trajectory
+- **Verification**: Natural pendulum swing with active A/D control, clean release with proper trajectory
 
 ### Step 3.3: Rope Length Control
 - W key: Shorten rope (increases swing speed due to angular momentum)
@@ -132,6 +136,8 @@
 - Mouse cursor aims rope direction correctly
 - Left mouse button fires and attaches rope to walls
 - Rope creates realistic pendulum swing physics
+- A key provides clockwise swing control for momentum building
+- D key provides counterclockwise swing control for momentum building
 - Player maintains momentum when rope is released
 - W key shortens rope and increases swing speed
 - S key lengthens rope and decreases swing speed
@@ -140,10 +146,13 @@
 - No physics glitches or constraint errors
 
 **PHASE 3 TESTING CHECKLIST**:
-- [ ] Rope fires in direction of mouse cursor
-- [ ] Rope attaches to walls within 200px range
-- [ ] Rope attachment creates visible line from player to wall
+- [x] Rope fires in direction of mouse cursor
+- [x] Rope attaches to walls within 200px range
+- [x] Rope attachment creates visible line from player to wall
 - [ ] Player swings naturally in pendulum motion
+- [ ] A key provides clockwise swing control around attachment point
+- [ ] D key provides counterclockwise swing control around attachment point
+- [ ] Swing controls build momentum for faster/higher swings
 - [ ] Releasing mouse button launches player with correct momentum
 - [ ] W key shortens rope and speeds up swing
 - [ ] S key lengthens rope and slows down swing

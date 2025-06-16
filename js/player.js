@@ -58,20 +58,8 @@ class Player {
     }
     
     handleTestingControls(input) {
-        const force = 0.001;
-        
-        if (input.isKeyPressed('KeyU')) {
-            Matter.Body.applyForce(this.body, this.body.position, { x: 0, y: -force });
-        }
-        if (input.isKeyPressed('KeyH')) {
-            Matter.Body.applyForce(this.body, this.body.position, { x: -force, y: 0 });
-        }
-        if (input.isKeyPressed('KeyJ')) {
-            Matter.Body.applyForce(this.body, this.body.position, { x: 0, y: force });
-        }
-        if (input.isKeyPressed('KeyK')) {
-            Matter.Body.applyForce(this.body, this.body.position, { x: force, y: 0 });
-        }
+        // Removed HJUK test controls - rope swing controls (A/D) are now primary movement
+        // Test controls were temporary for Phase 1/2 development
     }
     
     updateState() {

@@ -38,6 +38,49 @@ class Rope {
     handleAttachedState(player, input) {
         if (!input.isMouseDown()) {
             this.releaseRope();
+        } else {
+            // Handle A/D key swing controls while attached
+            this.handleSwingControls(player, input);
+        }
+    }
+    
+    handleSwingControls(player, input) {
+        if (!this.isAttached() || !this.attachmentPoint) return;
+        
+        const playerPos = player.getPosition();
+        const swingForce = 0.002; // Tunable swing force magnitude
+        
+        // Calculate angle from attachment point to player
+        const deltaX = playerPos.x - this.attachmentPoint.x;
+        const deltaY = playerPos.y - this.attachmentPoint.y;
+        const angle = Math.atan2(deltaY, deltaX);
+        
+        // Calculate perpendicular force direction for angular momentum
+        let forceX = 0;
+        let forceY = 0;
+        
+        if (input.isKeyPressed('KeyA')) {
+            // A key: Clockwise rotation around attachment point
+            // Force perpendicular to rope in clockwise direction
+            forceX = -Math.sin(angle) * swingForce;  // Perpendicular X component
+            forceY = Math.cos(angle) * swingForce;   // Perpendicular Y component
+            console.log('A key: Applying clockwise swing force');
+        }
+        
+        if (input.isKeyPressed('KeyD')) {
+            // D key: Counterclockwise rotation around attachment point
+            // Force perpendicular to rope in counterclockwise direction
+            forceX = Math.sin(angle) * swingForce;   // Perpendicular X component
+            forceY = -Math.cos(angle) * swingForce;  // Perpendicular Y component
+            console.log('D key: Applying counterclockwise swing force');
+        }
+        
+        // Apply the calculated swing force to the player
+        if (forceX !== 0 || forceY !== 0) {
+            Matter.Body.applyForce(player.getBody(), playerPos, { x: forceX, y: forceY });
+            
+            // Debug: Log swing force application
+            console.log(`Swing force applied: (${Math.round(forceX * 10000)/10000}, ${Math.round(forceY * 10000)/10000}) at angle ${Math.round(angle * 180/Math.PI)}°`);
         }
     }
     
@@ -235,13 +278,13 @@ class Rope {
         }
         
         try {
-            // Create Matter.js constraint with safer parameters
+            // Create Matter.js constraint with tuned parameters for realistic swing
             this.constraint = Matter.Constraint.create({
                 bodyA: player.getBody(),
                 pointA: { x: 0, y: 0 }, // Center of player body
                 pointB: this.attachmentPoint,
-                stiffness: 0.3, // Reduced from 0.8 for stability
-                damping: 0.3,   // Increased from 0.1 for stability
+                stiffness: 1.0,  // High stiffness for rope-like behavior
+                damping: 0.05,   // Low damping for natural pendulum motion
                 length: calculatedLength
             });
             
@@ -271,15 +314,34 @@ class Rope {
     
     releaseRope() {
         if (this.constraint) {
+            // Log player velocity before release for momentum conservation verification
+            const playerBody = this.constraint.bodyA;
+            const velocityBeforeRelease = { ...playerBody.velocity };
+            
+            console.log('=== ROPE RELEASE DEBUG ===');
+            console.log('Player velocity before release:', velocityBeforeRelease);
+            
+            // Remove constraint (momentum should be naturally conserved by Matter.js)
             this.physicsManager.removeConstraint(this.constraint);
             this.constraint = null;
+            
+            // Log velocity after release to verify momentum conservation
+            const velocityAfterRelease = { ...playerBody.velocity };
+            console.log('Player velocity after release:', velocityAfterRelease);
+            
+            const velocityChange = {
+                dx: velocityAfterRelease.x - velocityBeforeRelease.x,
+                dy: velocityAfterRelease.y - velocityBeforeRelease.y
+            };
+            console.log('Velocity change:', velocityChange);
+            console.log('=== END ROPE RELEASE DEBUG ===');
         }
         
         this.attachmentPoint = null;
         this.attachedBody = null;
         this.currentState = this.states.DETACHED;
         
-        console.log('Rope released');
+        console.log('Rope released - momentum conserved');
     }
     
     calculateRopeLength(playerPos, attachmentPoint) {

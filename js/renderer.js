@@ -110,7 +110,7 @@ class Renderer {
             `Camera Pos: (${Math.round(camPos.x)}, ${Math.round(camPos.y)})`,
             `Rope State: ${rope.getState()}`,
             `Rope Length: ${rope.isAttached() ? Math.round(rope.getRopeLength()) : 'N/A'}`,
-            `Controls: LMB to fire rope, U/H/J/K test movement`
+            `Controls: LMB=Fire Rope, A=Swing Clockwise, D=Swing Counter-CW`
         ];
         
         debugInfo.forEach((text, index) => {
