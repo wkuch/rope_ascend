@@ -132,6 +132,44 @@
 - Smooth length transitions with proper physics feedback
 - **Verification**: Length changes affect swing behavior predictably
 
+### Step 3.4: Environmental Rope Interaction
+**Goal**: Rope wraps around corners and obstacles for realistic environmental collision
+
+#### Step 3.4.1: Multi-Segment Rope Architecture
+- Replace single constraint with dynamic rope segment system
+- Rope data structure: array of points [player, pivot1, pivot2, ..., attachment]
+- Each segment has individual Matter.js constraint
+- Maintain total rope length across all segments
+- **Verification**: Rope represented as connected segments, length control works across segments
+
+#### Step 3.4.2: Intersection Detection System  
+- Implement line-rectangle intersection for rope segments vs obstacles
+- Continuous collision detection during rope movement
+- Extensible system for future obstacle types (circles, polygons)
+- Minimum intersection distance to prevent micro-collisions
+- **Verification**: System detects when rope segments intersect walls/platforms
+
+#### Step 3.4.3: Dynamic Pivot Point Management
+- Create pivot points when rope intersects obstacle corners/edges
+- Validate pivot points lie on obstacle boundaries
+- Remove obsolete pivots when rope unwraps (no longer needed)
+- Maintain minimum spacing between pivots to prevent clustering
+- **Verification**: Rope wraps around corners, unwraps when player swings back
+
+#### Step 3.4.4: Constraint System Integration
+- Smoothly transition from single to multi-segment constraints
+- Distribute rope length changes (W/S keys) across all segments  
+- Ensure swing physics (A/D keys) work with multi-segment rope
+- Handle constraint creation/removal without physics glitches
+- **Verification**: All rope controls work identically with environmental collision
+
+#### Step 3.4.5: Visual Rendering Updates
+- Update rope renderer to draw multi-segment rope following pivots
+- Show rope bending realistically around obstacles
+- Maintain rope length indicators and visual feedback
+- Debug visualization for pivot points and segments
+- **Verification**: Rope visually wraps around geometry, looks natural
+
 **PHASE 3 SUCCESS CRITERIA**:
 - Mouse cursor aims rope direction correctly
 - Left mouse button fires and attaches rope to walls
@@ -142,6 +180,9 @@
 - W key shortens rope and increases swing speed
 - S key lengthens rope and decreases swing speed
 - Rope length changes are smooth and responsive
+- **Rope wraps around corners and obstacles realistically**
+- **Rope unwraps when player swings back (no permanent tangling)**
+- **Multi-segment rope maintains same physics feel as single constraint**
 - Rope attachment point is visually clear
 - No physics glitches or constraint errors
 
@@ -149,16 +190,25 @@
 - [x] Rope fires in direction of mouse cursor
 - [x] Rope attaches to walls within 200px range
 - [x] Rope attachment creates visible line from player to wall
-- [ ] Player swings naturally in pendulum motion
-- [ ] A key provides clockwise swing control around attachment point
-- [ ] D key provides counterclockwise swing control around attachment point
-- [ ] Swing controls build momentum for faster/higher swings
-- [ ] Releasing mouse button launches player with correct momentum
-- [ ] W key shortens rope and speeds up swing
-- [ ] S key lengthens rope and slows down swing
-- [ ] Rope length changes are visually smooth
-- [ ] Multiple rope attach/release cycles work correctly
-- [ ] No rope constraint errors in console
+- [x] Player swings naturally in pendulum motion
+- [x] A key provides clockwise swing control around attachment point
+- [x] D key provides counterclockwise swing control around attachment point
+- [x] Swing controls build momentum for faster/higher swings
+- [x] Releasing mouse button launches player with correct momentum
+- [x] W key shortens rope and speeds up swing
+- [x] S key lengthens rope and slows down swing
+- [x] Rope length changes are visually smooth
+- [x] Multiple rope attach/release cycles work correctly
+- [x] No rope constraint errors in console
+- [ ] Rope wraps around platform corners when swinging
+- [ ] Rope wraps around multiple obstacles in sequence
+- [ ] Rope unwraps correctly when player swings back
+- [ ] Multi-segment rope maintains smooth swing physics
+- [ ] W/S length control works with wrapped rope
+- [ ] A/D swing control works with wrapped rope
+- [ ] Rope visual rendering follows all pivot points
+- [ ] No rope getting permanently stuck on geometry
+- [ ] Constraint creation/removal is smooth and glitch-free
 
 ## Phase 4: Procedural World Generation
 **Goal**: Infinite vertical world with strategic attachment points

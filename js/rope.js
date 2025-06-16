@@ -48,7 +48,10 @@ class Rope {
         if (!this.isAttached() || !this.attachmentPoint) return;
         
         const playerPos = player.getPosition();
-        const swingForce = 0.002; // Tunable swing force magnitude
+        const swingForce = 0.0005; // Tunable swing force magnitude
+        
+        // Handle rope length control (W/S keys)
+        this.handleRopeLengthControl(input);
         
         // Calculate angle from attachment point to player
         const deltaX = playerPos.x - this.attachmentPoint.x;
@@ -81,6 +84,46 @@ class Rope {
             
             // Debug: Log swing force application
             console.log(`Swing force applied: (${Math.round(forceX * 10000)/10000}, ${Math.round(forceY * 10000)/10000}) at angle ${Math.round(angle * 180/Math.PI)}°`);
+        }
+    }
+    
+    handleRopeLengthControl(input) {
+        if (!this.constraint) return;
+        
+        const lengthChangeRate = 2; // Pixels per frame to change rope length
+        const minLength = 20; // Minimum rope length
+        const maxLength = this.maxRange; // Maximum rope length (same as max range)
+        
+        let lengthChange = 0;
+        
+        if (input.isKeyPressed('KeyW')) {
+            // W key: Shorten rope (increases swing speed due to angular momentum conservation)
+            lengthChange = -lengthChangeRate;
+            console.log('W key: Shortening rope');
+        }
+        
+        if (input.isKeyPressed('KeyS')) {
+            // S key: Lengthen rope (decreases swing speed, allows wider swings)
+            lengthChange = lengthChangeRate;
+            console.log('S key: Lengthening rope');
+        }
+        
+        if (lengthChange !== 0) {
+            const currentLength = this.constraint.length;
+            const newLength = Math.max(minLength, Math.min(maxLength, currentLength + lengthChange));
+            
+            if (newLength !== currentLength) {
+                // Update constraint length smoothly
+                this.constraint.length = newLength;
+                
+                console.log(`Rope length changed from ${Math.round(currentLength)} to ${Math.round(newLength)}`);
+                
+                // Log the effect on angular momentum for debugging
+                const playerBody = this.constraint.bodyA;
+                const velocity = playerBody.velocity;
+                const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+                console.log(`Player speed after length change: ${Math.round(speed * 10)/10}`);
+            }
         }
     }
     

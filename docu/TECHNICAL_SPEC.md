@@ -57,18 +57,20 @@ rope-ascend/
 
 ### 3. Rope System (rope.js)
 **Responsibilities:**
-- Constraint-based rope physics using Matter.js constraints
+- Multi-segment rope physics with environmental collision
 - Dynamic rope length adjustment via W/S key input
 - Attachment point detection through raycasting
 - Angular momentum calculations for realistic swing physics
+- Environmental interaction with dynamic pivot points
 - Visual rope representation and rendering
 
 **Key Components:**
-- Constraint creation/destruction system
-- Length modification mechanics
+- Multi-segment constraint system with dynamic pivots
+- Environmental collision detection and pivot management
+- Length modification mechanics across rope segments
 - Raycast-based attachment detection
 - Momentum conservation calculations
-- Rope visual rendering (line segments)
+- Rope visual rendering following all pivot points
 
 ### 4. World Generation System (world.js)
 **Responsibilities:**
@@ -147,6 +149,56 @@ The rope system uses Matter.js constraints to simulate realistic rope behavior:
 - Implemented through Matter.js constraint physics
 - Shorter rope radius increases angular velocity naturally
 - Release timing critical for optimal trajectory
+
+### Environmental Rope Interaction System
+The rope system implements realistic environmental collision to allow rope wrapping around corners and obstacles:
+
+**Multi-Segment Rope Architecture:**
+- Rope represented as dynamic array of points: [player, pivot1, pivot2, ..., attachment]
+- Each segment connects consecutive points with Matter.js constraints
+- Total rope length maintained across all segments
+- Segments created/destroyed dynamically based on environmental collision
+
+**Intersection Detection Algorithm:**
+1. Continuously check each rope segment for collision with static bodies
+2. Use line-rectangle intersection for rectangular obstacles
+3. Extensible intersection system supports future obstacle types (circles, polygons)
+4. Minimum intersection distance threshold prevents micro-collisions
+
+**Dynamic Pivot Point Management:**
+- **Creation**: When rope segment intersects obstacle corner/edge, create pivot at intersection
+- **Validation**: Ensure pivot points lie on obstacle surface boundaries
+- **Spacing**: Maintain minimum distance between pivots to prevent clustering
+- **Removal**: Remove obsolete pivots when rope path no longer requires them (unwrapping)
+
+**Constraint System Updates:**
+- Replace single player-to-attachment constraint with multi-segment system
+- Each rope segment has individual Matter.js constraint with same physics properties
+- Length control (W/S keys) distributes changes proportionally across all segments
+- Swing physics (A/D keys) applied to player body, propagates through constraint chain
+
+**Collision Detection Implementation:**
+```
+for each rope segment (point[i] to point[i+1]):
+    for each static obstacle:
+        intersections = calculateIntersections(segment, obstacle)
+        if intersections.length > 0:
+            closest = findClosestIntersection(intersections, point[i])
+            if distance(closest, nearestPivot) > minPivotDistance:
+                insertPivotPoint(closest, segmentIndex)
+```
+
+**Performance Optimizations:**
+- Spatial partitioning for obstacle intersection queries
+- Segment-obstacle intersection caching
+- Limit maximum number of pivot points per rope
+- Early termination for segments outside collision range
+
+**Edge Case Handling:**
+- **Rope sliding**: Update pivot positions as rope moves along surfaces
+- **Multiple intersections**: Priority system chooses most relevant pivot point
+- **Unwrapping detection**: Remove pivots when rope path becomes straight
+- **Constraint stability**: Smooth pivot creation/removal prevents physics glitches
 
 ### Procedural World Generation
 **Generation Algorithm:**

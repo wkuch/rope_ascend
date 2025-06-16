@@ -77,19 +77,30 @@ class Renderer {
         if (rope.isAttached()) {
             const playerPos = player.getPosition();
             const attachmentPoint = rope.getAttachmentPoint();
+            const ropeLength = rope.getRopeLength();
             
-            // Draw rope line
+            // Draw rope line with thickness based on tension
+            const ropeThickness = Math.max(2, Math.min(5, ropeLength / 50));
             this.drawLine(
                 playerPos.x, 
                 playerPos.y, 
                 attachmentPoint.x, 
                 attachmentPoint.y, 
                 '#8B4513', // Brown color for rope
-                3
+                ropeThickness
             );
             
             // Draw attachment point indicator
-            this.drawCircle(attachmentPoint.x, attachmentPoint.y, 3, '#FF6B35');
+            this.drawCircle(attachmentPoint.x, attachmentPoint.y, 4, '#FF6B35');
+            
+            // Draw rope length indicator near attachment point
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = '12px monospace';
+            this.ctx.fillText(
+                `${Math.round(ropeLength)}px`, 
+                attachmentPoint.x + 8, 
+                attachmentPoint.y - 8
+            );
         }
     }
     
@@ -110,7 +121,7 @@ class Renderer {
             `Camera Pos: (${Math.round(camPos.x)}, ${Math.round(camPos.y)})`,
             `Rope State: ${rope.getState()}`,
             `Rope Length: ${rope.isAttached() ? Math.round(rope.getRopeLength()) : 'N/A'}`,
-            `Controls: LMB=Fire Rope, A=Swing Clockwise, D=Swing Counter-CW`
+            `Controls: LMB=Fire Rope, A/D=Swing, W=Shorten, S=Lengthen`
         ];
         
         debugInfo.forEach((text, index) => {
