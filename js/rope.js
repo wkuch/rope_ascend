@@ -19,6 +19,11 @@ class Rope {
         this.totalRopeLength = 0;
         this.playerBody = null; // Reference to player body for multi-segment constraints
         
+        // Stability controls
+        this.lastPivotChangeFrame = 0;
+        this.minFramesBetweenChanges = 5; // Minimum frames between pivot changes
+        this.frameCounter = 0;
+        
         // Legacy single constraint (will be removed when segments are active)
         this.constraint = null;
         
@@ -98,7 +103,7 @@ class Rope {
     }
     
     handleRopeLengthControl(input) {
-        if (!this.constraint) return;
+        if (!this.isAttached()) return;
         
         const lengthChangeRate = 2; // Pixels per frame to change rope length
         const minLength = 20; // Minimum rope length
@@ -119,21 +124,57 @@ class Rope {
         }
         
         if (lengthChange !== 0) {
-            const currentLength = this.constraint.length;
-            const newLength = Math.max(minLength, Math.min(maxLength, currentLength + lengthChange));
-            
-            if (newLength !== currentLength) {
-                // Update constraint length smoothly
-                this.constraint.length = newLength;
-                
-                console.log(`Rope length changed from ${Math.round(currentLength)} to ${Math.round(newLength)}`);
-                
-                // Log the effect on angular momentum for debugging
-                const playerBody = this.constraint.bodyA;
-                const velocity = playerBody.velocity;
-                const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-                console.log(`Player speed after length change: ${Math.round(speed * 10)/10}`);
+            if (this.segments.length > 0) {
+                // Multi-segment rope: distribute length change proportionally across all segments
+                this.adjustMultiSegmentLength(lengthChange, minLength, maxLength);
+            } else if (this.constraint) {
+                // Single segment rope: adjust single constraint
+                this.adjustSingleSegmentLength(lengthChange, minLength, maxLength);
             }
+        }
+    }
+    
+    adjustSingleSegmentLength(lengthChange, minLength, maxLength) {
+        const currentLength = this.constraint.length;
+        const newLength = Math.max(minLength, Math.min(maxLength, currentLength + lengthChange));
+        
+        if (newLength !== currentLength) {
+            this.constraint.length = newLength;
+            this.totalRopeLength = newLength;
+            
+            console.log(`Single rope length changed from ${Math.round(currentLength)} to ${Math.round(newLength)}`);
+            
+            // Log the effect on angular momentum for debugging
+            const playerBody = this.constraint.bodyA;
+            const velocity = playerBody.velocity;
+            const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+            console.log(`Player speed after length change: ${Math.round(speed * 10)/10}`);
+        }
+    }
+    
+    adjustMultiSegmentLength(lengthChange, minLength, maxLength) {
+        // Calculate current total length
+        const currentTotalLength = this.segments.reduce((total, segment) => total + segment.length, 0);
+        const newTotalLength = Math.max(minLength, Math.min(maxLength, currentTotalLength + lengthChange));
+        
+        if (newTotalLength !== currentTotalLength && this.segments.length > 0) {
+            // Calculate scaling factor for all segments
+            const scaleFactor = newTotalLength / currentTotalLength;
+            
+            // Apply scaling to all segment constraints
+            for (let i = 0; i < this.segments.length; i++) {
+                const segment = this.segments[i];
+                const newSegmentLength = segment.length * scaleFactor;
+                
+                if (segment.constraint) {
+                    segment.constraint.length = newSegmentLength;
+                    segment.length = newSegmentLength;
+                }
+            }
+            
+            this.totalRopeLength = newTotalLength;
+            
+            console.log(`Multi-segment rope length changed from ${Math.round(currentTotalLength)} to ${Math.round(newTotalLength)} across ${this.segments.length} segments`);
         }
     }
     
@@ -417,20 +458,86 @@ class Rope {
     updateEnvironmentalCollision(player) {
         if (!this.isAttached() || !this.attachmentPoint) return;
         
+        this.frameCounter++;
+        
+        // Only make pivot changes if enough frames have passed since last change
+        if (this.frameCounter - this.lastPivotChangeFrame < this.minFramesBetweenChanges) {
+            return;
+        }
+        
         const playerPos = player.getPosition();
         
-        // For now, use simple single-segment approach with collision detection
-        // This will be expanded to full multi-segment in subsequent steps
+        // First, check if existing pivots are still needed (unwrapping)
+        this.checkPivotRemoval(playerPos);
         
-        // Get all static bodies (walls, platforms, etc.)
+        // Then, check for new intersections (wrapping)
         const staticBodies = this.getStaticBodies();
-        
-        // Check if current rope path intersects any obstacles
         const ropeSegments = this.getCurrentRopeSegments(playerPos);
         
         for (let segmentIndex = 0; segmentIndex < ropeSegments.length; segmentIndex++) {
             const segment = ropeSegments[segmentIndex];
             this.checkSegmentCollision(segment, staticBodies, segmentIndex);
+        }
+    }
+    
+    checkPivotRemoval(playerPos) {
+        if (this.pivotPoints.length === 0) return;
+        
+        // Check if we can create a direct line from player to attachment without any pivots
+        const directPath = !this.lineIntersectsAnyObstacle(playerPos, this.attachmentPoint);
+        
+        if (directPath) {
+            // Remove all pivots - direct path is clear
+            console.log('Direct path clear - removing all pivots');
+            this.pivotPoints = [];
+            this.rebuildConstraintSystem();
+            this.lastPivotChangeFrame = this.frameCounter;
+            return;
+        }
+        
+        // Check each pivot to see if it's still needed
+        for (let i = this.pivotPoints.length - 1; i >= 0; i--) {
+            if (this.isPivotObsolete(i, playerPos)) {
+                console.log('Removing obsolete pivot at:', this.pivotPoints[i]);
+                this.pivotPoints.splice(i, 1);
+                this.rebuildConstraintSystem();
+                this.lastPivotChangeFrame = this.frameCounter;
+                break; // Only remove one pivot per frame for stability
+            }
+        }
+    }
+    
+    lineIntersectsAnyObstacle(start, end) {
+        const staticBodies = this.getStaticBodies();
+        
+        for (const body of staticBodies) {
+            const intersection = this.calculateBodyIntersection(start, end, body);
+            if (intersection) {
+                return true; // Found an intersection
+            }
+        }
+        
+        return false; // No intersections found
+    }
+    
+    isPivotObsolete(pivotIndex, playerPos) {
+        // A pivot is obsolete if we can draw a direct line that bypasses it
+        
+        if (pivotIndex === 0) {
+            // First pivot: check if player can go directly to next pivot (or attachment)
+            const nextPoint = pivotIndex < this.pivotPoints.length - 1 
+                ? this.pivotPoints[pivotIndex + 1] 
+                : this.attachmentPoint;
+            
+            return !this.lineIntersectsAnyObstacle(playerPos, nextPoint);
+        } else {
+            // Middle pivot: check if previous pivot can go directly to next point
+            const prevPoint = this.pivotPoints[pivotIndex - 1];
+            const nextPoint = pivotIndex < this.pivotPoints.length - 1 
+                ? this.pivotPoints[pivotIndex + 1] 
+                : this.attachmentPoint;
+            
+            return !this.lineIntersectsAnyObstacle(prevPoint, nextPoint);
         }
     }
     
@@ -475,6 +582,7 @@ class Rope {
             if (intersection) {
                 if (this.shouldCreatePivot(intersection, segmentIndex)) {
                     this.createPivotPoint(intersection, body, segmentIndex);
+                    this.lastPivotChangeFrame = this.frameCounter;
                     console.log('Created pivot point at:', intersection);
                     break; // Only create one pivot per segment per frame
                 }

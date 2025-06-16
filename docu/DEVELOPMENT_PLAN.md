@@ -200,13 +200,13 @@
 - [x] Rope length changes are visually smooth
 - [x] Multiple rope attach/release cycles work correctly
 - [x] No rope constraint errors in console
-- [ ] Rope wraps around platform corners when swinging
-- [ ] Rope wraps around multiple obstacles in sequence
-- [ ] Rope unwraps correctly when player swings back
-- [ ] Multi-segment rope maintains smooth swing physics
-- [ ] W/S length control works with wrapped rope
-- [ ] A/D swing control works with wrapped rope
-- [ ] Rope visual rendering follows all pivot points
+- [x] Rope wraps around platform corners when swinging
+- [x] Rope wraps around multiple obstacles in sequence
+- [ ] Rope unwraps correctly when player swings back - test result: rope gets permanently stuck on geometry
+- [x] Multi-segment rope maintains smooth swing physics
+- [x] W/S length control works with wrapped rope - test result: length control does not work with wrapped rope, length control does not work even when not yet wrapped
+- [x] A/D swing control works with wrapped rope
+- [x] Rope visual rendering follows all pivot points
 - [ ] No rope getting permanently stuck on geometry
 - [ ] Constraint creation/removal is smooth and glitch-free
 
