@@ -330,29 +330,47 @@ class Rope {
         return null;
     }
     
-    lineIntersection(p1, p2, p3, p4) {
-        // Calculate intersection of two line segments
-        const x1 = p1.x, y1 = p1.y;
-        const x2 = p2.x, y2 = p2.y;
-        const x3 = p3.x, y3 = p3.y;
-        const x4 = p4.x, y4 = p4.y;
-        
-        const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-        
-        if (Math.abs(denom) < 1e-10) return null; // Lines are parallel
-        
-        const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
-        const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
-        
-        if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-            return {
-                x: x1 + t * (x2 - x1),
-                y: y1 + t * (y2 - y1)
-            };
+    lineIntersection(p1, p2, p3, p4, eps = 1e-6) {
+        const x1 = p1.x, y1 = p1.y,
+              x2 = p2.x, y2 = p2.y,
+              x3 = p3.x, y3 = p3.y,
+              x4 = p4.x, y4 = p4.y;
+      
+        const denom = (x1 - x2) * (y3 - y4) -
+                      (y1 - y2) * (x3 - x4);
+      
+        // parallel or collinear
+        if (Math.abs(denom) < eps) {
+          // are they collinear?
+          const col = Math.abs(
+            (x1 - x3) * (y1 - y2) -
+            (y1 - y3) * (x1 - x2)
+          ) < eps;
+          if (!col) return null;          // parallel but distinct
+      
+          // 1-D overlap test
+          const overlapX =
+            Math.max(Math.min(x1, x2), Math.min(x3, x4)) <=
+            Math.min(Math.max(x1, x2), Math.max(x3, x4));
+          const overlapY =
+            Math.max(Math.min(y1, y2), Math.min(y3, y4)) <=
+            Math.min(Math.max(y1, y2), Math.max(y3, y4));
+      
+          return overlapX && overlapY ? { x: x3, y: y3 } : null;
         }
-        
+      
+        // proper intersection (end-points excluded)
+        const t = ((x1 - x3) * (y3 - y4) -
+                   (y1 - y3) * (x3 - x4)) / denom;
+        const u = (-(x1 - x2) * (y1 - y3) +
+                   (y1 - y2) * (x1 - x3)) / denom;
+      
+        if (t > eps && t < 1 - eps && u > eps && u < 1 - eps) {
+          return { x: x1 + t * (x2 - x1),
+                   y: y1 + t * (y2 - y1) };
+        }
         return null;
-    }
+      }
     
     createAttachment(attachmentPoint, attachedBody, player) {
         const playerPos = player.getPosition();
@@ -516,85 +534,76 @@ class Rope {
     
     lineIntersectsAnyObstacle(start, end) {
         const staticBodies = this.getStaticBodies();
-        
         for (const body of staticBodies) {
-            const intersection = this.calculateBodyIntersection(start, end, body);
-            if (intersection) {
-                return true; // Found an intersection
-            }
+          if (this.calculateBodyIntersection(start, end, body)) return true;
         }
-        
-        return false; // No intersections found
-    }
-    
-    isPivotObsolete(pivotIndex, playerPos) {
-        // A pivot is obsolete if we can draw a direct line that bypasses it
-        // AND the player has moved sufficiently away from the pivot
-        
+        return false;
+      }
+      
+      isPivotObsolete(pivotIndex, playerPos) {
         const currentPivot = this.pivotPoints[pivotIndex];
-        const playerDistance = Math.sqrt(
-            Math.pow(playerPos.x - currentPivot.x, 2) + 
-            Math.pow(playerPos.y - currentPivot.y, 2)
-        );
-        
-        // Require minimum distance before allowing pivot removal (prevents oscillation)
+      
+        // prevent jitter: keep pivots that are still very close to the player
         const minRemovalDistance = 30;
-        if (playerDistance < minRemovalDistance) {
-            return false;
-        }
-        
+        if (
+          Math.hypot(
+            playerPos.x - currentPivot.x,
+            playerPos.y - currentPivot.y
+          ) < minRemovalDistance
+        ) return false;
+      
         if (pivotIndex === 0) {
-            // First pivot: check if player can go directly to next pivot (or attachment)
-            const nextPoint = pivotIndex < this.pivotPoints.length - 1 
-                ? this.pivotPoints[pivotIndex + 1] 
-                : this.attachmentPoint;
-            
-            const directPathClear = !this.lineIntersectsAnyObstacle(playerPos, nextPoint);
-            
-            // Additional check: ensure the rope would actually "unwrap" (player is on the correct side)
-            if (directPathClear) {
-                return this.isPlayerOnCorrectSideForUnwrapping(playerPos, currentPivot, nextPoint);
-            }
-            
-            return false;
+          // ── first pivot (closest to player) ───────────────────────────
+          const nextPoint =
+            pivotIndex < this.pivotPoints.length - 1
+              ? this.pivotPoints[pivotIndex + 1]
+              : this.attachmentPoint;
+      
+          const pathClear =
+            !this.lineIntersectsAnyObstacle(playerPos, nextPoint);
+      
+          return (
+            pathClear &&
+            this.isAlmostStraight(playerPos, currentPivot, nextPoint)
+          );
         } else {
-            // Middle pivot: check if previous pivot can go directly to next point
-            const prevPoint = this.pivotPoints[pivotIndex - 1];
-            const nextPoint = pivotIndex < this.pivotPoints.length - 1 
-                ? this.pivotPoints[pivotIndex + 1] 
-                : this.attachmentPoint;
-            
-            return !this.lineIntersectsAnyObstacle(prevPoint, nextPoint);
+          // ── middle / last-but-one pivot ───────────────────────────────
+          const prevPoint = this.pivotPoints[pivotIndex - 1];
+          const nextPoint =
+            pivotIndex < this.pivotPoints.length - 1
+              ? this.pivotPoints[pivotIndex + 1]
+              : this.attachmentPoint;
+      
+          const pathClear =
+            !this.lineIntersectsAnyObstacle(prevPoint, nextPoint);
+      
+          return (
+            pathClear &&
+            this.isAlmostStraight(prevPoint, currentPivot, nextPoint)
+          );
         }
-    }
-    
-    isPlayerOnCorrectSideForUnwrapping(playerPos, pivotPos, nextPos) {
-        // Check if the player has swung to the opposite side of the pivot
-        // This prevents premature unwrapping when player is still on the "wrapped" side
-        
-        // Calculate the vector from pivot to next point
-        const pivotToNext = {
-            x: nextPos.x - pivotPos.x,
-            y: nextPos.y - pivotPos.y
+      }
+      
+      isAlmostStraight(prevPos, pivotPos, nextPos, maxDeviationDeg = 10) {
+        const v1 = {
+          x: prevPos.x - pivotPos.x,
+          y: prevPos.y - pivotPos.y
         };
-        
-        // Calculate the vector from pivot to player
-        const pivotToPlayer = {
-            x: playerPos.x - pivotPos.x,
-            y: playerPos.y - pivotPos.y
+        const v2 = {
+          x: nextPos.x - pivotPos.x,
+          y: nextPos.y - pivotPos.y
         };
-        
-        // Use cross product to determine which side the player is on
-        const crossProduct = pivotToNext.x * pivotToPlayer.y - pivotToNext.y * pivotToPlayer.x;
-        
-        // If cross product sign has changed from when rope wrapped, allow unwrapping
-        // For now, use a simpler approach: check if player is moving away from the pivot
-        const playerToPivot = Math.sqrt(pivotToPlayer.x * pivotToPlayer.x + pivotToPlayer.y * pivotToPlayer.y);
-        const nextToPivot = Math.sqrt(pivotToNext.x * pivotToNext.x + pivotToNext.y * pivotToNext.y);
-        
-        // Allow unwrapping if player is farther from pivot than the next point
-        return playerToPivot > nextToPivot * 0.8; // 80% threshold for stability
-    }
+      
+        const len1 = Math.hypot(v1.x, v1.y);
+        const len2 = Math.hypot(v2.x, v2.y);
+        if (len1 === 0 || len2 === 0) return false;
+      
+        const dot = (v1.x * v2.x + v1.y * v2.y) / (len1 * len2);
+        const cosLimit =
+          Math.cos((180 - maxDeviationDeg) * Math.PI / 180); // negative value
+      
+        return dot <= cosLimit;  // true when angle ≥ 180°−maxDeviationDeg
+      }
     
     getCurrentRopeSegments(playerPos) {
         // Current implementation: single segment from player to attachment
