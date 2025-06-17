@@ -8,7 +8,7 @@ class PhysicsManager {
         
         this.createBoundaries();
         
-        console.log('Physics engine initialized with gravity:', this.engine.world.gravity);
+        //console.log('Physics engine initialized with gravity:', this.engine.world.gravity);
     }
     
     createBoundaries() {
@@ -83,7 +83,7 @@ class PhysicsManager {
             Matter.World.add(this.world, boundary);
         });
         
-        console.log('Enhanced environment created with platforms, ceilings, and pillars');
+        //console.log('Enhanced environment created with platforms, ceilings, and pillars');
     }
     
     update(deltaTime) {

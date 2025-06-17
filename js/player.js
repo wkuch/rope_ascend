@@ -20,7 +20,7 @@ class Player {
         
         this.physicsManager.addBody(this.body);
         
-        console.log('Player created at:', x, y, 'with radius:', this.radius);
+        //console.log('Player created at:', x, y, 'with radius:', this.radius);
     }
     
     update(deltaTime, input) {
@@ -39,11 +39,11 @@ class Player {
         const hasExtremeVelocity = Math.abs(vel.x) > 50 || Math.abs(vel.y) > 50;
         
         if (isOffScreen) {
-            console.error('PLAYER OFF-SCREEN! Position:', pos, 'Velocity:', vel);
+            //console.error('PLAYER OFF-SCREEN! Position:', pos, 'Velocity:', vel);
         }
         
         if (hasExtremeVelocity) {
-            console.warn('EXTREME PLAYER VELOCITY! Position:', pos, 'Velocity:', vel);
+            //console.warn('EXTREME PLAYER VELOCITY! Position:', pos, 'Velocity:', vel);
         }
     }
     
@@ -53,7 +53,8 @@ class Player {
         const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
         
         if (speed > 0.1) {
-            console.log(`Player - State: ${this.currentState}, Pos: (${Math.round(pos.x)}, ${Math.round(pos.y)}), Vel: (${Math.round(vel.x * 10)/10}, ${Math.round(vel.y * 10)/10}), Speed: ${Math.round(speed * 10)/10}`);
+            // Debug: Log player position and velocity - disabled for now to reduce console noise
+            //console.log(`Player - State: ${this.currentState}, Pos: (${Math.round(pos.x)}, ${Math.round(pos.y)}), Vel: (${Math.round(vel.x * 10)/10}, ${Math.round(vel.y * 10)/10}), Speed: ${Math.round(speed * 10)/10}`);
         }
     }
     
@@ -76,7 +77,7 @@ class Player {
     setState(newState) {
         if (this.states[newState.toUpperCase()]) {
             this.currentState = this.states[newState.toUpperCase()];
-            console.log('Player state changed to:', this.currentState);
+            //console.log('Player state changed to:', this.currentState);
         }
     }
     

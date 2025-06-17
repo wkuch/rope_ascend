@@ -3,7 +3,7 @@ class Renderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         
-        console.log('Renderer initialized with canvas:', canvas.width, 'x', canvas.height);
+        //console.log('Renderer initialized with canvas:', canvas.width, 'x', canvas.height);
     }
     
     clear() {

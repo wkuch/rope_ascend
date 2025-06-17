@@ -10,7 +10,7 @@ class Camera {
         this.followThreshold = canvasHeight * 0.25;
         this.smoothing = 0.1;
         
-        console.log('Camera initialized with threshold:', this.followThreshold);
+        //console.log('Camera initialized with threshold:', this.followThreshold);
     }
     
     update(playerPosition) {
@@ -27,7 +27,7 @@ class Camera {
         }
         
         if (this.y !== oldY) {
-            console.log(`Camera moved up from ${Math.round(oldY)} to ${Math.round(this.y)} (player at ${Math.round(playerPosition.y)})`);
+            //console.log(`Camera moved up from ${Math.round(oldY)} to ${Math.round(this.y)} (player at ${Math.round(playerPosition.y)})`);
         }
     }
     

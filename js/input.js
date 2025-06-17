@@ -42,10 +42,10 @@ class InputManager {
     
     update() {
         if (this.mouse.isDown || Object.values(this.keys).some(key => key)) {
-            console.log(`Mouse: (${Math.round(this.mouse.x)}, ${Math.round(this.mouse.y)}), Down: ${this.mouse.isDown}`);
+            //console.log(`Mouse: (${Math.round(this.mouse.x)}, ${Math.round(this.mouse.y)}), Down: ${this.mouse.isDown}`);
             const activeKeys = Object.keys(this.keys).filter(key => this.keys[key]);
             if (activeKeys.length > 0) {
-                console.log('Active keys:', activeKeys);
+                //console.log('Active keys:', activeKeys);
             }
         }
     }

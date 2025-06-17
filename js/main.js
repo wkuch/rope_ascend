@@ -15,7 +15,7 @@ class Game {
         
         this.state = 'running';
         
-        console.log('Game initialized');
+        //console.log('Game initialized');
         this.start();
     }
     
@@ -42,7 +42,7 @@ class Game {
             this.fps = this.frameCount;
             this.frameCount = 0;
             this.lastFpsTime = currentTime;
-            console.log('FPS:', this.fps);
+            //console.log('FPS:', this.fps);
         }
     }
     

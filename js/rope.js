@@ -27,7 +27,7 @@ class Rope {
         // Legacy single constraint (will be removed when segments are active)
         this.constraint = null;
         
-        console.log('Multi-segment rope system initialized with max range:', this.maxRange);
+        //console.log('Multi-segment rope system initialized with max range:', this.maxRange);
     }
     
     update(player, input, camera) {
@@ -90,7 +90,7 @@ class Rope {
             // Force perpendicular to rope in counterclockwise direction
             forceX = Math.sin(angle) * swingForce;   // Perpendicular X component
             forceY = -Math.cos(angle) * swingForce;  // Perpendicular Y component
-            console.log('D key: Applying counterclockwise swing force');
+            //console.log('D key: Applying counterclockwise swing force');
         }
         
         // Apply the calculated swing force to the player
@@ -98,7 +98,7 @@ class Rope {
             Matter.Body.applyForce(player.getBody(), playerPos, { x: forceX, y: forceY });
             
             // Debug: Log swing force application
-            console.log(`Swing force applied: (${Math.round(forceX * 10000)/10000}, ${Math.round(forceY * 10000)/10000}) at angle ${Math.round(angle * 180/Math.PI)}°`);
+            //console.log(`Swing force applied: (${Math.round(forceX * 10000)/10000}, ${Math.round(forceY * 10000)/10000}) at angle ${Math.round(angle * 180/Math.PI)}°`);
         }
     }
     
@@ -114,13 +114,13 @@ class Rope {
         if (input.isKeyPressed('KeyW')) {
             // W key: Shorten rope (increases swing speed due to angular momentum conservation)
             lengthChange = -lengthChangeRate;
-            console.log('W key: Shortening rope');
+            //console.log('W key: Shortening rope');
         }
         
         if (input.isKeyPressed('KeyS')) {
             // S key: Lengthen rope (decreases swing speed, allows wider swings)
             lengthChange = lengthChangeRate;
-            console.log('S key: Lengthening rope');
+            //console.log('S key: Lengthening rope');
         }
         
         if (lengthChange !== 0) {
@@ -142,22 +142,27 @@ class Rope {
             this.constraint.length = newLength;
             this.totalRopeLength = newLength;
             
-            console.log(`Single rope length changed from ${Math.round(currentLength)} to ${Math.round(newLength)}`);
+            //console.log(`Single rope length changed from ${Math.round(currentLength)} to ${Math.round(newLength)}`);
             
             // Log the effect on angular momentum for debugging
             const playerBody = this.constraint.bodyA;
             const velocity = playerBody.velocity;
             const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-            console.log(`Player speed after length change: ${Math.round(speed * 10)/10}`);
+            //console.log(`Player speed after length change: ${Math.round(speed * 10)/10}`);
         }
     }
     
     adjustMultiSegmentLength(lengthChange, minLength, maxLength) {
+        if (this.segments.length === 0) {
+            //console.log('No segments available for length adjustment');
+            return;
+        }
+        
         // Calculate current total length
         const currentTotalLength = this.segments.reduce((total, segment) => total + segment.length, 0);
         const newTotalLength = Math.max(minLength, Math.min(maxLength, currentTotalLength + lengthChange));
         
-        if (newTotalLength !== currentTotalLength && this.segments.length > 0) {
+        if (newTotalLength !== currentTotalLength) {
             // Calculate scaling factor for all segments
             const scaleFactor = newTotalLength / currentTotalLength;
             
@@ -169,12 +174,16 @@ class Rope {
                 if (segment.constraint) {
                     segment.constraint.length = newSegmentLength;
                     segment.length = newSegmentLength;
+                    
+                    // Force constraint update by removing and re-adding
+                    this.physicsManager.removeConstraint(segment.constraint);
+                    this.physicsManager.addConstraint(segment.constraint);
                 }
             }
             
             this.totalRopeLength = newTotalLength;
             
-            console.log(`Multi-segment rope length changed from ${Math.round(currentTotalLength)} to ${Math.round(newTotalLength)} across ${this.segments.length} segments`);
+            //console.log(`Multi-segment rope length changed from ${Math.round(currentTotalLength)} to ${Math.round(newTotalLength)} across ${this.segments.length} segments`);
         }
     }
     
@@ -182,13 +191,13 @@ class Rope {
         const playerPos = player.getPosition();
         const mousePos = input.getMousePosition();
         
-        console.log('=== ROPE FIRING DEBUG ===');
-        console.log('Player position:', playerPos);
-        console.log('Mouse screen position:', mousePos);
+        //console.log('=== ROPE FIRING DEBUG ===');
+        //console.log('Player position:', playerPos);
+        //console.log('Mouse screen position:', mousePos);
         
         // Convert mouse screen coordinates to world coordinates
         const worldMousePos = camera.screenToWorld(mousePos.x, mousePos.y);
-        console.log('Mouse world position:', worldMousePos);
+        //console.log('Mouse world position:', worldMousePos);
         
         // Calculate direction vector from player to mouse
         const direction = {
@@ -217,18 +226,18 @@ class Rope {
             x: playerPos.x + normalizedDir.x * raycastDistance,
             y: playerPos.y + normalizedDir.y * raycastDistance
         };
-        console.log('Raycast from:', playerPos, 'to:', rayEnd, 'distance:', raycastDistance);
+        //console.log('Raycast from:', playerPos, 'to:', rayEnd, 'distance:', raycastDistance);
         
         // Perform raycast
         const raycastResult = this.performRaycast(playerPos, rayEnd);
         
         if (raycastResult.hit) {
-            console.log('Raycast hit detected, creating attachment');
+            //console.log('Raycast hit detected, creating attachment');
             this.createAttachment(raycastResult.point, raycastResult.body, player);
         } else {
-            console.log('No raycast hit detected');
+            //console.log('No raycast hit detected');
         }
-        console.log('=== END ROPE FIRING DEBUG ===');
+        //console.log('=== END ROPE FIRING DEBUG ===');
     }
     
     performRaycast(startPoint, endPoint) {
@@ -267,7 +276,7 @@ class Rope {
         }
         
         if (closestHit) {
-            console.log('Rope raycast hit:', closestHit.point, 'on body:', closestHit.body.label, 'distance:', closestHit.distance);
+            //console.log('Rope raycast hit:', closestHit.point, 'on body:', closestHit.body.label, 'distance:', closestHit.distance);
             return {
                 hit: true,
                 point: closestHit.point,
@@ -347,10 +356,10 @@ class Rope {
     
     createAttachment(attachmentPoint, attachedBody, player) {
         const playerPos = player.getPosition();
-        console.log('=== ROPE ATTACHMENT DEBUG ===');
-        console.log('Player position before attachment:', playerPos);
-        console.log('Attachment point:', attachmentPoint);
-        console.log('Attached body label:', attachedBody.label);
+        //console.log('=== ROPE ATTACHMENT DEBUG ===');
+        //console.log('Player position before attachment:', playerPos);
+        //console.log('Attachment point:', attachmentPoint);
+        //console.log('Attached body label:', attachedBody.label);
         
         this.attachmentPoint = { ...attachmentPoint };
         this.attachedBody = attachedBody;
@@ -395,19 +404,17 @@ class Rope {
             this.physicsManager.addConstraint(this.constraint);
             this.currentState = this.states.ATTACHED;
         } catch (error) {
-            console.error('Error creating rope constraint:', error);
+            //console.error('Error creating rope constraint:', error);
             this.constraint = null;
             return;
         }
         
         // Check player position after constraint creation
         const playerPosAfter = player.getPosition();
-        console.log('Player position after attachment:', playerPosAfter);
-        console.log('Position change:', {
-            dx: playerPosAfter.x - playerPos.x,
-            dy: playerPosAfter.y - playerPos.y
-        });
-        console.log('=== END ROPE ATTACHMENT DEBUG ===');
+        //console.log('Player position after attachment:', playerPosAfter);
+        //console.log('Position change:');
+        // Removed incomplete object literal
+        //console.log('=== END ROPE ATTACHMENT DEBUG ===');
     }
     
     releaseRope() {
@@ -416,8 +423,8 @@ class Rope {
             const playerBody = this.constraint.bodyA;
             const velocityBeforeRelease = { ...playerBody.velocity };
             
-            console.log('=== ROPE RELEASE DEBUG ===');
-            console.log('Player velocity before release:', velocityBeforeRelease);
+            //console.log('=== ROPE RELEASE DEBUG ===');
+            //console.log('Player velocity before release:', velocityBeforeRelease);
             
             // Remove constraint (momentum should be naturally conserved by Matter.js)
             this.physicsManager.removeConstraint(this.constraint);
@@ -425,14 +432,14 @@ class Rope {
             
             // Log velocity after release to verify momentum conservation
             const velocityAfterRelease = { ...playerBody.velocity };
-            console.log('Player velocity after release:', velocityAfterRelease);
+            //console.log('Player velocity after release:', velocityAfterRelease);
             
             const velocityChange = {
                 dx: velocityAfterRelease.x - velocityBeforeRelease.x,
                 dy: velocityAfterRelease.y - velocityBeforeRelease.y
             };
-            console.log('Velocity change:', velocityChange);
-            console.log('=== END ROPE RELEASE DEBUG ===');
+            //console.log('Velocity change:', velocityChange);
+            //console.log('=== END ROPE RELEASE DEBUG ===');
         }
         
         // Clear multi-segment data
@@ -445,7 +452,7 @@ class Rope {
         this.totalRopeLength = 0;
         this.currentState = this.states.DETACHED;
         
-        console.log('Rope released - momentum conserved');
+        //console.log('Rope released - momentum conserved');
     }
     
     calculateRopeLength(playerPos, attachmentPoint) {
@@ -488,7 +495,7 @@ class Rope {
         
         if (directPath) {
             // Remove all pivots - direct path is clear
-            console.log('Direct path clear - removing all pivots');
+            //console.log('Direct path clear - removing all pivots');
             this.pivotPoints = [];
             this.rebuildConstraintSystem();
             this.lastPivotChangeFrame = this.frameCounter;
@@ -498,7 +505,7 @@ class Rope {
         // Check each pivot to see if it's still needed
         for (let i = this.pivotPoints.length - 1; i >= 0; i--) {
             if (this.isPivotObsolete(i, playerPos)) {
-                console.log('Removing obsolete pivot at:', this.pivotPoints[i]);
+                //console.log('Removing obsolete pivot at:', this.pivotPoints[i]);
                 this.pivotPoints.splice(i, 1);
                 this.rebuildConstraintSystem();
                 this.lastPivotChangeFrame = this.frameCounter;
@@ -522,6 +529,19 @@ class Rope {
     
     isPivotObsolete(pivotIndex, playerPos) {
         // A pivot is obsolete if we can draw a direct line that bypasses it
+        // AND the player has moved sufficiently away from the pivot
+        
+        const currentPivot = this.pivotPoints[pivotIndex];
+        const playerDistance = Math.sqrt(
+            Math.pow(playerPos.x - currentPivot.x, 2) + 
+            Math.pow(playerPos.y - currentPivot.y, 2)
+        );
+        
+        // Require minimum distance before allowing pivot removal (prevents oscillation)
+        const minRemovalDistance = 30;
+        if (playerDistance < minRemovalDistance) {
+            return false;
+        }
         
         if (pivotIndex === 0) {
             // First pivot: check if player can go directly to next pivot (or attachment)
@@ -529,7 +549,14 @@ class Rope {
                 ? this.pivotPoints[pivotIndex + 1] 
                 : this.attachmentPoint;
             
-            return !this.lineIntersectsAnyObstacle(playerPos, nextPoint);
+            const directPathClear = !this.lineIntersectsAnyObstacle(playerPos, nextPoint);
+            
+            // Additional check: ensure the rope would actually "unwrap" (player is on the correct side)
+            if (directPathClear) {
+                return this.isPlayerOnCorrectSideForUnwrapping(playerPos, currentPivot, nextPoint);
+            }
+            
+            return false;
         } else {
             // Middle pivot: check if previous pivot can go directly to next point
             const prevPoint = this.pivotPoints[pivotIndex - 1];
@@ -539,6 +566,34 @@ class Rope {
             
             return !this.lineIntersectsAnyObstacle(prevPoint, nextPoint);
         }
+    }
+    
+    isPlayerOnCorrectSideForUnwrapping(playerPos, pivotPos, nextPos) {
+        // Check if the player has swung to the opposite side of the pivot
+        // This prevents premature unwrapping when player is still on the "wrapped" side
+        
+        // Calculate the vector from pivot to next point
+        const pivotToNext = {
+            x: nextPos.x - pivotPos.x,
+            y: nextPos.y - pivotPos.y
+        };
+        
+        // Calculate the vector from pivot to player
+        const pivotToPlayer = {
+            x: playerPos.x - pivotPos.x,
+            y: playerPos.y - pivotPos.y
+        };
+        
+        // Use cross product to determine which side the player is on
+        const crossProduct = pivotToNext.x * pivotToPlayer.y - pivotToNext.y * pivotToPlayer.x;
+        
+        // If cross product sign has changed from when rope wrapped, allow unwrapping
+        // For now, use a simpler approach: check if player is moving away from the pivot
+        const playerToPivot = Math.sqrt(pivotToPlayer.x * pivotToPlayer.x + pivotToPlayer.y * pivotToPlayer.y);
+        const nextToPivot = Math.sqrt(pivotToNext.x * pivotToNext.x + pivotToNext.y * pivotToNext.y);
+        
+        // Allow unwrapping if player is farther from pivot than the next point
+        return playerToPivot > nextToPivot * 0.8; // 80% threshold for stability
     }
     
     getCurrentRopeSegments(playerPos) {
@@ -583,7 +638,7 @@ class Rope {
                 if (this.shouldCreatePivot(intersection, segmentIndex)) {
                     this.createPivotPoint(intersection, body, segmentIndex);
                     this.lastPivotChangeFrame = this.frameCounter;
-                    console.log('Created pivot point at:', intersection);
+                    //console.log('Created pivot point at:', intersection);
                     break; // Only create one pivot per segment per frame
                 }
             }
@@ -709,7 +764,7 @@ class Rope {
             });
         }
         
-        console.log(`Created ${this.segments.length} rope segments with ${this.pivotPoints.length} pivots`);
+        //console.log(`Created ${this.segments.length} rope segments with ${this.pivotPoints.length} pivots`);
     }
     
     getCurrentPlayerBody() {
