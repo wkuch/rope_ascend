@@ -540,51 +540,45 @@ class Rope {
         return false;
       }
       
-      isPivotObsolete(pivotIndex, playerPos) {
+    // minimal tweak of the previous implementation
+    isPivotObsolete(pivotIndex, playerPos) {
         const currentPivot = this.pivotPoints[pivotIndex];
-      
-        // prevent jitter: keep pivots that are still very close to the player
-        const minRemovalDistance = 30;
-        if (
-          Math.hypot(
+    
+        const isFirst   = pivotIndex === 0;
+        const prevPoint = isFirst
+            ? playerPos
+            : this.pivotPoints[pivotIndex - 1];
+        const nextPoint = pivotIndex < this.pivotPoints.length - 1
+            ? this.pivotPoints[pivotIndex + 1]
+            : this.attachmentPoint;
+    
+        // 1.  Is the direct line around this pivot free of obstacles?
+        //     (ignore the wall *at the pivot itself*, otherwise the line
+        //      is considered blocked just because it touches that edge)
+        const pathClear =
+            !this.lineIntersectsAnyObstacle(prevPoint, nextPoint);
+    
+        // 2.  Is the rope almost straight through the pivot?
+        const straightEnough =
+            this.isAlmostStraight(prevPoint, currentPivot, nextPoint);
+    
+        if (pathClear && straightEnough) {
+        // geometric criteria satisfied – pivot can go, even if the
+        // player is still very close
+        return true;
+        }
+    
+        // 3.  Otherwise keep the pivot while the player is still nearby
+        const playerDistance = Math.hypot(
             playerPos.x - currentPivot.x,
             playerPos.y - currentPivot.y
-          ) < minRemovalDistance
-        ) return false;
+        );
+  
+        const minRemovalDistance = 10;        // was 30
+        return playerDistance >= minRemovalDistance && pathClear && straightEnough;
+    }
       
-        if (pivotIndex === 0) {
-          // ── first pivot (closest to player) ───────────────────────────
-          const nextPoint =
-            pivotIndex < this.pivotPoints.length - 1
-              ? this.pivotPoints[pivotIndex + 1]
-              : this.attachmentPoint;
-      
-          const pathClear =
-            !this.lineIntersectsAnyObstacle(playerPos, nextPoint);
-      
-          return (
-            pathClear &&
-            this.isAlmostStraight(playerPos, currentPivot, nextPoint)
-          );
-        } else {
-          // ── middle / last-but-one pivot ───────────────────────────────
-          const prevPoint = this.pivotPoints[pivotIndex - 1];
-          const nextPoint =
-            pivotIndex < this.pivotPoints.length - 1
-              ? this.pivotPoints[pivotIndex + 1]
-              : this.attachmentPoint;
-      
-          const pathClear =
-            !this.lineIntersectsAnyObstacle(prevPoint, nextPoint);
-      
-          return (
-            pathClear &&
-            this.isAlmostStraight(prevPoint, currentPivot, nextPoint)
-          );
-        }
-      }
-      
-      isAlmostStraight(prevPos, pivotPos, nextPos, maxDeviationDeg = 10) {
+    isAlmostStraight(prevPos, pivotPos, nextPos, maxDeviationDeg = 10) {
         const v1 = {
           x: prevPos.x - pivotPos.x,
           y: prevPos.y - pivotPos.y
