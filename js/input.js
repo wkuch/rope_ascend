@@ -4,7 +4,9 @@ class InputManager {
         this.mouse = {
             x: 0,
             y: 0,
-            isDown: false
+            isDown: false,
+            pressed: false,
+            released: false
         };
         
         this.keys = {};
@@ -22,12 +24,14 @@ class InputManager {
         this.canvas.addEventListener('mousedown', (e) => {
             if (e.button === 0) {
                 this.mouse.isDown = true;
+                this.mouse.pressed = true;
             }
         });
         
         this.canvas.addEventListener('mouseup', (e) => {
             if (e.button === 0) {
                 this.mouse.isDown = false;
+                this.mouse.released = true;
             }
         });
         
@@ -50,6 +54,12 @@ class InputManager {
         }
     }
     
+    endFrame() {
+        // Reset mouse state flags at end of frame
+        this.mouse.pressed = false;
+        this.mouse.released = false;
+    }
+    
     isKeyPressed(keyCode) {
         return !!this.keys[keyCode];
     }
@@ -60,5 +70,13 @@ class InputManager {
     
     isMouseDown() {
         return this.mouse.isDown;
+    }
+    
+    isMousePressed() {
+        return this.mouse.pressed;
+    }
+    
+    isMouseReleased() {
+        return this.mouse.released;
     }
 }

@@ -309,17 +309,17 @@
 - Complete gameplay loop from start to end works
 
 **PHASE 5 TESTING CHECKLIST**:
-- [ ] Hazard appears at bottom of screen    
-- [ ] Hazard rises at appropriate constant speed
-- [ ] Hazard has clear visual representation
-- [ ] Player dies immediately upon touching hazard
-- [ ] Score increases correctly as player climbs
-- [ ] High score is saved and persists after refresh
-- [ ] Game over screen shows current score and high score
-- [ ] Restart button works and resets game properly
-- [ ] All game states (menu, playing, game over) work
-- [ ] State transitions are smooth without glitches
-- [ ] UI elements are readable and properly positioned
+- [x] Hazard appears at bottom of screen    
+- [x] Hazard rises at appropriate constant speed
+- [x] Hazard has clear visual representation
+- [x] Player dies immediately upon touching hazard
+- [x] Score increases correctly as player climbs
+- [x] High score is saved and persists after refresh
+- [x] Game over screen shows current score and high score
+- [x] Restart button works and resets game properly
+- [x] All game states (menu, playing, game over) work
+- [x] State transitions are smooth without glitches
+- [x] UI elements are readable and properly positioned
 
 ## Phase 6: Polish & Optimization
 **Goal**: Smooth 60fps gameplay with satisfying feel

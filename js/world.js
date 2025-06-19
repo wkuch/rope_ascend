@@ -70,7 +70,6 @@ class WorldGenerator {
         this.chunksGenerated++;
         this.totalPhysicsBodies += chunk.physicsBodies.length;
         
-        console.log(`Generated chunk: ${chunkId} at y: ${chunkY} with ${chunk.physicsBodies.length} physics bodies`);
         
         return chunk;
     }
@@ -97,30 +96,33 @@ class WorldGenerator {
     }
     
     generatePlatforms(chunk) {
-        // Generate sparse, strategic platforms focused on swinging gameplay
-        const targetClusterSpacing = 250; // Much more spacing between clusters
-        const numClusters = Math.max(1, Math.ceil(chunk.height / targetClusterSpacing)); // Fewer clusters
+        // Generate very sparse platforms for challenging rope swinging gameplay
+        const targetClusterSpacing = 350; // Even more spacing between clusters
+        const numClusters = Math.max(1, Math.floor(chunk.height / targetClusterSpacing)); // Fewer clusters, sometimes none
         
         // Clear platforms array
         chunk.platforms = [];
         
-        for (let i = 0; i < numClusters; i++) {
-            const clusterCenterY = chunk.y + (i + 1) * (chunk.height / (numClusters + 1));
-            
-            // 70% chance of cluster, 30% chance of single strategic platform
-            if (Math.random() < 0.7) {
-                const clusterType = this.selectClusterType();
-                const clusterPlatforms = this.generateCluster(clusterType, clusterCenterY, chunk);
-                chunk.platforms.push(...clusterPlatforms);
-            } else {
-                // Single strategic platform for long swings
-                const strategicPlatform = this.generateStrategicPlatform(clusterCenterY, chunk);
-                chunk.platforms.push(strategicPlatform);
-                this.clusterStats.strategic++; // Track strategic platforms
+        // 80% chance to generate platforms, 20% chance of completely empty chunk
+        if (Math.random() < 0.8) {
+            for (let i = 0; i < numClusters; i++) {
+                const clusterCenterY = chunk.y + (i + 1) * (chunk.height / Math.max(1, numClusters));
+                
+                // 50% chance of cluster, 50% chance of single strategic platform
+                if (Math.random() < 0.5) {
+                    const clusterType = this.selectClusterType();
+                    const clusterPlatforms = this.generateCluster(clusterType, clusterCenterY, chunk);
+                    chunk.platforms.push(...clusterPlatforms);
+                } else {
+                    // Single strategic platform for long swings
+                    const strategicPlatform = this.generateStrategicPlatform(clusterCenterY, chunk);
+                    chunk.platforms.push(strategicPlatform);
+                    this.clusterStats.strategic++; // Track strategic platforms
+                }
             }
         }
         
-        // Ensure minimum platform density for safety (but more lenient)
+        // Ensure minimum platform density for safety (very lenient for challenge)
         this.ensureMinimumPlatformDensity(chunk);
     }
     
@@ -163,9 +165,9 @@ class WorldGenerator {
     
     generateStairCluster(centerY, chunk) {
         const platforms = [];
-        const numSteps = 2 + Math.floor(Math.random() * 2); // 2-3 steps (reduced)
-        const stepSpacingY = 60 + Math.random() * 40; // 60-100px vertical spacing (increased)
-        const stepSpacingX = 80 + Math.random() * 60; // 80-140px horizontal spacing (increased)
+        const numSteps = 2; // Fixed 2 steps for minimal challenge
+        const stepSpacingY = 80 + Math.random() * 60; // 80-140px vertical spacing (more challenge)
+        const stepSpacingX = 100 + Math.random() * 80; // 100-180px horizontal spacing (wider gaps)
         const ascending = Math.random() < 0.5; // Random direction
         
         const startX = 250 + Math.random() * 300; // Start position in chasm
@@ -174,7 +176,7 @@ class WorldGenerator {
         for (let i = 0; i < numSteps; i++) {
             const stepX = startX + (ascending ? i : -i) * stepSpacingX;
             const stepY = startY + i * stepSpacingY;
-            const size = this.generatePlatformSize('medium'); // Medium-sized platforms
+            const size = this.generatePlatformSize('medium');
             
             platforms.push({
                 x: stepX,
@@ -192,7 +194,7 @@ class WorldGenerator {
     
     generateOverhangCluster(centerY, chunk) {
         const platforms = [];
-        const numPlatforms = 1 + Math.floor(Math.random() * 2); // 1-2 platforms (reduced)
+        const numPlatforms = Math.random() < 0.7 ? 1 : 2; // Mostly 1 platform, rarely 2
         const isLeftSide = Math.random() < 0.5;
         
         const baseWallX = isLeftSide ? 
@@ -200,8 +202,8 @@ class WorldGenerator {
             this.getWallXAtY(chunk.rightWallCoords, centerY);
         
         for (let i = 0; i < numPlatforms; i++) {
-            const platformY = centerY - 40 + i * 80; // More vertical spread
-            const extension = 100 + i * 40; // Upper platforms extend further
+            const platformY = centerY - 50 + i * 100; // Even more vertical spread
+            const extension = 120 + i * 50; // Extend further for challenge
             const size = this.generatePlatformSize('medium');
             
             const platformX = isLeftSide ?
@@ -249,16 +251,16 @@ class WorldGenerator {
     
     generateScatteredCluster(centerY, chunk) {
         const platforms = [];
-        const numPlatforms = 2 + Math.floor(Math.random() * 2); // 2-3 platforms (reduced)
-        const spreadRadius = 120; // Increased spread for more spacing
+        const numPlatforms = Math.random() < 0.6 ? 2 : 3; // Mostly 2 platforms, rarely 3
+        const spreadRadius = 150; // Even wider spread for challenge
         
         for (let i = 0; i < numPlatforms; i++) {
             const angle = (i / numPlatforms) * Math.PI * 2; // Distribute around circle
-            const distance = 60 + Math.random() * spreadRadius;
+            const distance = 80 + Math.random() * spreadRadius;
             const size = this.generatePlatformSize('medium');
             
             const platformX = 400 + Math.cos(angle) * distance; // Center around chasm middle
-            const platformY = centerY + Math.sin(angle) * distance * 0.4; // Flatten vertically more
+            const platformY = centerY + Math.sin(angle) * distance * 0.3; // Flatten vertically even more
             
             platforms.push({
                 x: platformX,
@@ -327,18 +329,19 @@ class WorldGenerator {
     }
     
     ensureMinimumPlatformDensity(chunk) {
-        // Check if we have sufficient platform coverage (more lenient for sparse design)
+        // Check if we have sufficient platform coverage (very lenient for challenge)
         const platformsByY = chunk.platforms.slice().sort((a, b) => a.y - b.y);
-        const maxGap = 200; // Increased from 150px to allow for longer swings
+        const maxGap = 300; // Much larger gaps allowed for challenging gameplay
         
-        // Add emergency platforms only if gaps are truly dangerous
+        // Add emergency platforms only if gaps are impossibly large
         for (let i = 0; i < platformsByY.length - 1; i++) {
             const gap = platformsByY[i + 1].y - platformsByY[i].y;
             
+            // Only add emergency platform if gap is truly impossible (> 300px)
             if (gap > maxGap) {
                 const emergencyY = platformsByY[i].y + gap / 2;
                 const emergencyX = 300 + Math.random() * 200;
-                const size = this.generatePlatformSize('small'); // Smaller emergency platforms
+                const size = this.generatePlatformSize('small'); // Small emergency platforms
                 
                 chunk.platforms.push({
                     x: emergencyX,
@@ -356,29 +359,29 @@ class WorldGenerator {
     }
     
     generateCeilings(chunk) {
-        // Generate strategic ceiling sections for overhead attachment
-        const numCeilings = 1 + Math.floor(Math.random() * 2);
+        // Generate very sparse ceiling sections for overhead attachment
+        const numCeilings = Math.random() < 0.6 ? 0 : 1; // 60% chance of no ceiling, 40% chance of 1 ceiling
         
         for (let i = 0; i < numCeilings; i++) {
-            const y = chunk.y + (i + 0.5) * (chunk.height / (numCeilings + 1));
+            const y = chunk.y + chunk.height * (0.3 + Math.random() * 0.4); // Place in middle area
             
             // Vary ceiling placement for strategic value
             const placementType = Math.random();
             let centerX, width;
             
-            if (placementType < 0.6) {
-                // Center ceiling for overhead swinging
-                centerX = 250 + Math.random() * 300;
-                width = 120 + Math.random() * 160;
+            if (placementType < 0.7) {
+                // Center ceiling for overhead swinging (more common)
+                centerX = 300 + Math.random() * 200;
+                width = 100 + Math.random() * 120; // Smaller ceilings
             } else {
                 // Side ceiling extending into chasm
                 const isLeftSide = Math.random() < 0.5;
                 if (isLeftSide) {
-                    centerX = 150 + Math.random() * 150;
+                    centerX = 150 + Math.random() * 100;
                 } else {
-                    centerX = 500 + Math.random() * 150;
+                    centerX = 550 + Math.random() * 100;
                 }
-                width = 100 + Math.random() * 120;
+                width = 80 + Math.random() * 80; // Smaller side ceilings
             }
             
             chunk.ceilings.push({
@@ -648,6 +651,35 @@ class WorldGenerator {
         return Array.from(this.activeChunks.values());
     }
     
+    reset() {
+        console.log('Resetting world generator...');
+        
+        // Remove all active chunks and their physics bodies
+        const chunkIds = Array.from(this.activeChunks.keys());
+        chunkIds.forEach(chunkId => {
+            this.removeChunk(chunkId);
+        });
+        
+        // Reset tracking variables
+        this.lastCameraY = 0;
+        this.chunksGenerated = 0;
+        this.chunksRemoved = 0;
+        this.totalPhysicsBodies = 0;
+        this.emergencyPlatforms = 0;
+        this.boundaryPlatforms = 0;
+        
+        // Reset cluster statistics
+        this.clusterStats = {
+            stair: 0,
+            overhang: 0,
+            stack: 0,
+            scattered: 0,
+            strategic: 0
+        };
+        
+        console.log('World generator reset complete');
+    }
+    
     removeChunk(chunkId) {
         if (this.activeChunks.has(chunkId)) {
             const chunk = this.activeChunks.get(chunkId);
@@ -683,6 +715,7 @@ class WorldGenerator {
         for (let chunkY = topChunk; chunkY <= bottomChunk; chunkY += this.chunkHeight) {
             chunks.push(chunkY);
         }
+        
         
         return chunks;
     }

@@ -31,24 +31,38 @@ class Renderer {
         this.ctx.stroke();
     }
     
-    render(camera, player, physics, rope, world) {
+    render(camera, player, physics, rope, world, hazard, gameState, scoring) {
         this.clear();
         
-        // Render game world with camera transform
-        this.ctx.save();
-        const transform = camera.getTransform();
-        this.ctx.translate(transform.x, transform.y);
         
-        this.renderBoundaries(physics.getBoundaries());
-        this.renderWorld(world);
-        this.renderPlayer(player);
-        this.renderRope(player, rope);
-        this.renderVelocityArrow(player);
-        
-        this.ctx.restore();
-        
-        // Render debug UI in screen space (no camera transform)
-        this.renderDebugUI(camera, player, rope, world);
+        switch (gameState) {
+            case 'menu':
+                this.renderMenuScreen(scoring);
+                break;
+            case 'gameOver':
+                this.renderGameOverScreen(player, hazard, scoring);
+                break;
+            case 'playing':
+            default:
+                // Render game world with camera transform
+                this.ctx.save();
+                const transform = camera.getTransform();
+                this.ctx.translate(transform.x, transform.y);
+                
+                this.renderBoundaries(physics.getBoundaries());
+                this.renderWorld(world);
+                this.renderHazard(hazard);
+                this.renderPlayer(player);
+                this.renderRope(player, rope);
+                this.renderVelocityArrow(player);
+                
+                this.ctx.restore();
+                
+                // Render UI in screen space (no camera transform)
+                this.renderGameUI(scoring);
+                this.renderDebugUI(camera, player, rope, world, hazard);
+                break;
+        }
     }
     
     renderVelocityArrow(player) {
@@ -137,7 +151,167 @@ class Renderer {
         }
     }
     
-    renderDebugUI(camera, player, rope, world) {
+    renderHazard(hazard) {
+        if (!hazard) return;
+        
+        const visualData = hazard.getVisualData();
+        
+        // Draw main hazard body with wave effect
+        this.ctx.fillStyle = visualData.color;
+        this.ctx.fillRect(
+            visualData.x,
+            visualData.y,
+            visualData.width,
+            visualData.height
+        );
+        
+        // Draw animated wave effect on top
+        this.ctx.strokeStyle = '#ff6666';
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        
+        const waveY = visualData.y;
+        const numWaves = 20;
+        const waveStep = visualData.width / numWaves;
+        
+        for (let i = 0; i <= numWaves; i++) {
+            const x = visualData.x + i * waveStep;
+            const waveHeight = Math.sin(i * visualData.waveFrequency + visualData.waveOffset) * visualData.waveAmplitude;
+            const y = waveY + waveHeight;
+            
+            if (i === 0) {
+                this.ctx.moveTo(x, y);
+            } else {
+                this.ctx.lineTo(x, y);
+            }
+        }
+        
+        this.ctx.stroke();
+        
+        // Add danger text
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 24px monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(
+            'DANGER',
+            visualData.width / 2,
+            visualData.y + visualData.height / 2 + 8
+        );
+        this.ctx.textAlign = 'left'; // Reset alignment
+    }
+
+    renderGameUI(scoring) {
+        if (!scoring) return;
+        
+        const scoreData = scoring.getScoreData();
+        
+        // Current score display (top right)
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 20px monospace';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(`Height: ${scoreData.current}`, this.canvas.width - 20, 30);
+        
+        // High score display (top right, below current)
+        this.ctx.fillStyle = '#ffdd44';
+        this.ctx.font = '16px monospace';
+        this.ctx.fillText(`Best: ${scoreData.high}`, this.canvas.width - 20, 55);
+        
+        this.ctx.textAlign = 'left'; // Reset alignment
+    }
+
+    renderMenuScreen(scoring) {
+        // Dark background
+        this.ctx.fillStyle = '#1a1a1a';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Game title
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 56px monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('ROPE ASCEND', this.canvas.width / 2, this.canvas.height / 2 - 120);
+        
+        // Game description
+        this.ctx.fillStyle = '#cccccc';
+        this.ctx.font = '20px monospace';
+        this.ctx.fillText('Escape the rising hazard using only your grappling rope!', this.canvas.width / 2, this.canvas.height / 2 - 70);
+        
+        // Controls
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '16px monospace';
+        this.ctx.fillText('LMB: Fire Rope    A/D: Swing    W/S: Rope Length', this.canvas.width / 2, this.canvas.height / 2 - 20);
+        
+        // High score display
+        if (scoring) {
+            const highScore = scoring.getHighScore();
+            if (highScore > 0) {
+                this.ctx.fillStyle = '#ffdd44';
+                this.ctx.font = 'bold 24px monospace';
+                this.ctx.fillText(`Best Height: ${highScore}`, this.canvas.width / 2, this.canvas.height / 2 + 20);
+            }
+        }
+        
+        // Start instructions
+        this.ctx.fillStyle = '#44ff44';
+        this.ctx.font = 'bold 28px monospace';
+        this.ctx.fillText('Press SPACE or ENTER to start', this.canvas.width / 2, this.canvas.height / 2 + 80);
+        
+        // Credits
+        this.ctx.fillStyle = '#888888';
+        this.ctx.font = '12px monospace';
+        this.ctx.fillText('Physics: Matter.js', this.canvas.width / 2, this.canvas.height - 40);
+        this.ctx.fillText('Inspired by Worms Armageddon Ninja Rope', this.canvas.width / 2, this.canvas.height - 20);
+        
+        this.ctx.textAlign = 'left'; // Reset alignment
+    }
+
+    renderGameOverScreen(player, hazard, scoring) {
+        // Semi-transparent dark overlay
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        const scoreData = scoring ? scoring.getScoreData() : { current: 0, high: 0, isNewHigh: false };
+        
+        // Game Over title
+        this.ctx.fillStyle = '#ff4444';
+        this.ctx.font = 'bold 48px monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2 - 100);
+        
+        // Death message
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '24px monospace';
+        this.ctx.fillText('Consumed by the rising hazard!', this.canvas.width / 2, this.canvas.height / 2 - 50);
+        
+        // Final score
+        this.ctx.fillStyle = scoreData.isNewHigh ? '#44ff44' : '#ffffff';
+        this.ctx.font = 'bold 32px monospace';
+        this.ctx.fillText(`Final Height: ${scoreData.current}`, this.canvas.width / 2, this.canvas.height / 2 - 5);
+        
+        // New high score message
+        if (scoreData.isNewHigh) {
+            this.ctx.fillStyle = '#44ff44';
+            this.ctx.font = 'bold 24px monospace';
+            this.ctx.fillText('NEW HIGH SCORE!', this.canvas.width / 2, this.canvas.height / 2 + 25);
+        }
+        
+        // Previous high score
+        this.ctx.fillStyle = '#cccccc';
+        this.ctx.font = '18px monospace';
+        this.ctx.fillText(`Previous Best: ${scoreData.high}`, this.canvas.width / 2, this.canvas.height / 2 + 55);
+        
+        // Action instructions
+        this.ctx.font = '18px monospace';
+        this.ctx.fillStyle = '#ffdd44';
+        this.ctx.fillText('Press R or SPACE to play again', this.canvas.width / 2, this.canvas.height / 2 + 90);
+        
+        this.ctx.font = '16px monospace';
+        this.ctx.fillStyle = '#cccccc';
+        this.ctx.fillText('Press M or ESC for main menu', this.canvas.width / 2, this.canvas.height / 2 + 115);
+        
+        this.ctx.textAlign = 'left'; // Reset alignment
+    }
+
+    renderDebugUI(camera, player, rope, world, hazard) {
         this.ctx.fillStyle = '#2c3e50';
         this.ctx.font = '14px monospace';
         
@@ -146,6 +320,8 @@ class Renderer {
         const camPos = camera.getPosition();
         const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
         const stats = world ? world.getStreamingStats() : {};
+        const hazardY = hazard ? Math.round(hazard.getCurrentY()) : 'N/A';
+        const hazardDistance = hazard ? Math.round(pos.y - hazard.getCurrentY()) : 'N/A';
         
         const clusterInfo = stats.clusterStats ? 
             `S:${stats.clusterStats.stair} O:${stats.clusterStats.overhang} T:${stats.clusterStats.stack} C:${stats.clusterStats.scattered} R:${stats.clusterStats.strategic}` :
@@ -159,6 +335,7 @@ class Renderer {
             `Camera Pos: (${Math.round(camPos.x)}, ${Math.round(camPos.y)})`,
             `Rope State: ${rope.getState()}`,
             `Rope Length: ${rope.isAttached() ? Math.round(rope.getRopeLength()) : 'N/A'}`,
+            `Hazard Y: ${hazardY} | Distance: ${hazardDistance}`,
             `Active Chunks: ${stats.activeChunks || 0} | Bodies: ${stats.totalPhysicsBodies || 0}`,
             `Generated: ${stats.totalGenerated || 0} | Removed: ${stats.totalRemoved || 0}`,
             `Emergency: ${stats.emergencyPlatforms || 0} | Boundary: ${stats.boundaryPlatforms || 0}`,
