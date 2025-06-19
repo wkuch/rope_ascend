@@ -21,6 +21,15 @@ class WorldGenerator {
         this.emergencyPlatforms = 0;
         this.boundaryPlatforms = 0;
         
+        // Cluster statistics
+        this.clusterStats = {
+            stair: 0,
+            overhang: 0,
+            stack: 0,
+            scattered: 0,
+            strategic: 0
+        };
+        
         console.log('WorldGenerator initialized with chunk size:', this.chunkWidth, 'x', this.chunkHeight);
     }
     
@@ -88,41 +97,261 @@ class WorldGenerator {
     }
     
     generatePlatforms(chunk) {
-        // Generate strategic platforms ensuring attachment points every 100-150px
-        const maxVerticalGap = 150; // Maximum gap between attachment points
-        const targetPlatformSpacing = 120; // Ideal spacing between platforms
-        const numPlatforms = Math.max(3, Math.ceil(chunk.height / targetPlatformSpacing));
+        // Generate sparse, strategic platforms focused on swinging gameplay
+        const targetClusterSpacing = 250; // Much more spacing between clusters
+        const numClusters = Math.max(1, Math.ceil(chunk.height / targetClusterSpacing)); // Fewer clusters
+        
+        // Clear platforms array
+        chunk.platforms = [];
+        
+        for (let i = 0; i < numClusters; i++) {
+            const clusterCenterY = chunk.y + (i + 1) * (chunk.height / (numClusters + 1));
+            
+            // 70% chance of cluster, 30% chance of single strategic platform
+            if (Math.random() < 0.7) {
+                const clusterType = this.selectClusterType();
+                const clusterPlatforms = this.generateCluster(clusterType, clusterCenterY, chunk);
+                chunk.platforms.push(...clusterPlatforms);
+            } else {
+                // Single strategic platform for long swings
+                const strategicPlatform = this.generateStrategicPlatform(clusterCenterY, chunk);
+                chunk.platforms.push(strategicPlatform);
+                this.clusterStats.strategic++; // Track strategic platforms
+            }
+        }
+        
+        // Ensure minimum platform density for safety (but more lenient)
+        this.ensureMinimumPlatformDensity(chunk);
+    }
+    
+    selectClusterType() {
+        const types = ['stair', 'overhang', 'stack', 'scattered'];
+        const weights = [0.25, 0.25, 0.25, 0.25]; // Equal probability for now
+        
+        const random = Math.random();
+        let cumulative = 0;
+        
+        for (let i = 0; i < types.length; i++) {
+            cumulative += weights[i];
+            if (random < cumulative) {
+                return types[i];
+            }
+        }
+        
+        return types[types.length - 1];
+    }
+    
+    generateCluster(clusterType, centerY, chunk) {
+        // Track cluster generation statistics
+        if (this.clusterStats[clusterType] !== undefined) {
+            this.clusterStats[clusterType]++;
+        }
+        
+        switch (clusterType) {
+            case 'stair':
+                return this.generateStairCluster(centerY, chunk);
+            case 'overhang':
+                return this.generateOverhangCluster(centerY, chunk);
+            case 'stack':
+                return this.generateStackCluster(centerY, chunk);
+            case 'scattered':
+                return this.generateScatteredCluster(centerY, chunk);
+            default:
+                return this.generateScatteredCluster(centerY, chunk);
+        }
+    }
+    
+    generateStairCluster(centerY, chunk) {
+        const platforms = [];
+        const numSteps = 2 + Math.floor(Math.random() * 2); // 2-3 steps (reduced)
+        const stepSpacingY = 60 + Math.random() * 40; // 60-100px vertical spacing (increased)
+        const stepSpacingX = 80 + Math.random() * 60; // 80-140px horizontal spacing (increased)
+        const ascending = Math.random() < 0.5; // Random direction
+        
+        const startX = 250 + Math.random() * 300; // Start position in chasm
+        const startY = centerY - (numSteps - 1) * stepSpacingY / 2;
+        
+        for (let i = 0; i < numSteps; i++) {
+            const stepX = startX + (ascending ? i : -i) * stepSpacingX;
+            const stepY = startY + i * stepSpacingY;
+            const size = this.generatePlatformSize('medium'); // Medium-sized platforms
+            
+            platforms.push({
+                x: stepX,
+                y: stepY,
+                width: size.width,
+                height: size.height,
+                type: 'stair',
+                clusterType: 'stair',
+                stepIndex: i
+            });
+        }
+        
+        return platforms;
+    }
+    
+    generateOverhangCluster(centerY, chunk) {
+        const platforms = [];
+        const numPlatforms = 1 + Math.floor(Math.random() * 2); // 1-2 platforms (reduced)
+        const isLeftSide = Math.random() < 0.5;
+        
+        const baseWallX = isLeftSide ? 
+            this.getWallXAtY(chunk.leftWallCoords, centerY) :
+            this.getWallXAtY(chunk.rightWallCoords, centerY);
         
         for (let i = 0; i < numPlatforms; i++) {
-            const y = chunk.y + (i + 1) * (chunk.height / (numPlatforms + 1));
+            const platformY = centerY - 40 + i * 80; // More vertical spread
+            const extension = 100 + i * 40; // Upper platforms extend further
+            const size = this.generatePlatformSize('medium');
             
-            // Alternate sides and occasionally place in center for variety
-            const placementChoice = Math.random();
-            let platformX, platformWidth;
+            const platformX = isLeftSide ?
+                baseWallX + extension :
+                baseWallX - extension;
             
-            if (placementChoice < 0.4) {
-                // Platform extending from left wall
-                const wallX = this.getWallXAtY(chunk.leftWallCoords, y);
-                platformWidth = 80 + Math.random() * 60;
-                platformX = wallX + platformWidth / 2;
-            } else if (placementChoice < 0.8) {
-                // Platform extending from right wall
-                const wallX = this.getWallXAtY(chunk.rightWallCoords, y);
-                platformWidth = 80 + Math.random() * 60;
-                platformX = wallX - platformWidth / 2;
-            } else {
-                // Center platform for strategic positioning
-                platformWidth = 100 + Math.random() * 80;
-                platformX = 300 + Math.random() * 200; // Center area of chasm
-            }
-            
-            chunk.platforms.push({
+            platforms.push({
                 x: platformX,
-                y: y,
-                width: platformWidth,
-                height: 20,
-                type: 'platform'
+                y: platformY,
+                width: size.width,
+                height: size.height,
+                type: 'overhang',
+                clusterType: 'overhang',
+                extension: extension
             });
+        }
+        
+        return platforms;
+    }
+    
+    generateStackCluster(centerY, chunk) {
+        const platforms = [];
+        const numPlatforms = 2; // Fixed 2 platforms (reduced)
+        const baseX = 300 + Math.random() * 200; // Center area
+        const verticalSpacing = 80 + Math.random() * 40; // 80-120px spacing (increased)
+        
+        for (let i = 0; i < numPlatforms; i++) {
+            const platformY = centerY - (numPlatforms - 1) * verticalSpacing / 2 + i * verticalSpacing;
+            const horizontalOffset = (Math.random() - 0.5) * 100; // ±50px offset (increased)
+            const size = this.generatePlatformSize('medium');
+            
+            platforms.push({
+                x: baseX + horizontalOffset,
+                y: platformY,
+                width: size.width,
+                height: size.height,
+                type: 'stack',
+                clusterType: 'stack',
+                stackLevel: i
+            });
+        }
+        
+        return platforms;
+    }
+    
+    generateScatteredCluster(centerY, chunk) {
+        const platforms = [];
+        const numPlatforms = 2 + Math.floor(Math.random() * 2); // 2-3 platforms (reduced)
+        const spreadRadius = 120; // Increased spread for more spacing
+        
+        for (let i = 0; i < numPlatforms; i++) {
+            const angle = (i / numPlatforms) * Math.PI * 2; // Distribute around circle
+            const distance = 60 + Math.random() * spreadRadius;
+            const size = this.generatePlatformSize('medium');
+            
+            const platformX = 400 + Math.cos(angle) * distance; // Center around chasm middle
+            const platformY = centerY + Math.sin(angle) * distance * 0.4; // Flatten vertically more
+            
+            platforms.push({
+                x: platformX,
+                y: platformY,
+                width: size.width,
+                height: size.height,
+                type: 'scattered',
+                clusterType: 'scattered',
+                scatterIndex: i
+            });
+        }
+        
+        return platforms;
+    }
+    
+    generatePlatformSize(sizeHint = 'varied') {
+        let width, height;
+        
+        switch (sizeHint) {
+            case 'small':
+                width = 60 + Math.random() * 40; // 60-100px
+                height = 15 + Math.random() * 10; // 15-25px
+                break;
+            case 'medium':
+                width = 90 + Math.random() * 60; // 90-150px
+                height = 20 + Math.random() * 15; // 20-35px
+                break;
+            case 'large':
+                width = 140 + Math.random() * 60; // 140-200px
+                height = 25 + Math.random() * 15; // 25-40px
+                break;
+            default: // 'varied'
+                width = 60 + Math.random() * 140; // 60-200px
+                height = 15 + Math.random() * 25; // 15-40px
+        }
+        
+        return { width, height };
+    }
+    
+    generateStrategicPlatform(centerY, chunk) {
+        // Single well-placed platform for long swings
+        const placement = Math.random();
+        let platformX;
+        const size = this.generatePlatformSize('medium');
+        
+        if (placement < 0.4) {
+            // Wall-attached platform
+            const isLeftSide = Math.random() < 0.5;
+            const wallX = isLeftSide ? 
+                this.getWallXAtY(chunk.leftWallCoords, centerY) :
+                this.getWallXAtY(chunk.rightWallCoords, centerY);
+            platformX = isLeftSide ? wallX + 80 : wallX - 80;
+        } else {
+            // Center area platform for maximum swing potential
+            platformX = 300 + Math.random() * 200;
+        }
+        
+        return {
+            x: platformX,
+            y: centerY,
+            width: size.width,
+            height: size.height,
+            type: 'strategic',
+            clusterType: 'strategic'
+        };
+    }
+    
+    ensureMinimumPlatformDensity(chunk) {
+        // Check if we have sufficient platform coverage (more lenient for sparse design)
+        const platformsByY = chunk.platforms.slice().sort((a, b) => a.y - b.y);
+        const maxGap = 200; // Increased from 150px to allow for longer swings
+        
+        // Add emergency platforms only if gaps are truly dangerous
+        for (let i = 0; i < platformsByY.length - 1; i++) {
+            const gap = platformsByY[i + 1].y - platformsByY[i].y;
+            
+            if (gap > maxGap) {
+                const emergencyY = platformsByY[i].y + gap / 2;
+                const emergencyX = 300 + Math.random() * 200;
+                const size = this.generatePlatformSize('small'); // Smaller emergency platforms
+                
+                chunk.platforms.push({
+                    x: emergencyX,
+                    y: emergencyY,
+                    width: size.width,
+                    height: size.height,
+                    type: 'emergency',
+                    clusterType: 'emergency',
+                    emergency: true
+                });
+                
+                this.emergencyPlatforms++;
+            }
         }
     }
     
@@ -506,6 +735,7 @@ class WorldGenerator {
             totalPhysicsBodies: this.totalPhysicsBodies,
             emergencyPlatforms: this.emergencyPlatforms,
             boundaryPlatforms: this.boundaryPlatforms,
+            clusterStats: this.clusterStats,
             lastCameraY: this.lastCameraY
         };
     }

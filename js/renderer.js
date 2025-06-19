@@ -147,6 +147,10 @@ class Renderer {
         const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
         const stats = world ? world.getStreamingStats() : {};
         
+        const clusterInfo = stats.clusterStats ? 
+            `S:${stats.clusterStats.stair} O:${stats.clusterStats.overhang} T:${stats.clusterStats.stack} C:${stats.clusterStats.scattered} R:${stats.clusterStats.strategic}` :
+            'N/A';
+        
         const debugInfo = [
             `Player State: ${player.getState()}`,
             `Player Pos: (${Math.round(pos.x)}, ${Math.round(pos.y)})`,
@@ -158,6 +162,7 @@ class Renderer {
             `Active Chunks: ${stats.activeChunks || 0} | Bodies: ${stats.totalPhysicsBodies || 0}`,
             `Generated: ${stats.totalGenerated || 0} | Removed: ${stats.totalRemoved || 0}`,
             `Emergency: ${stats.emergencyPlatforms || 0} | Boundary: ${stats.boundaryPlatforms || 0}`,
+            `Clusters: ${clusterInfo}`,
             `Controls: LMB=Fire Rope, A/D=Swing, W=Shorten, S=Lengthen`
         ];
         
@@ -193,25 +198,40 @@ class Renderer {
             this.renderWallCoordinates(chunk.leftWallCoords, '#34495e');
             this.renderWallCoordinates(chunk.rightWallCoords, '#34495e');
             
-            // Render platforms with different colors based on type
+            // Render platforms with different colors based on cluster type
             chunk.platforms.forEach(platform => {
                 let color = '#2c3e50'; // Default platform color
                 
+                // Emergency and boundary platforms take priority
                 if (platform.emergency) {
                     color = '#e74c3c'; // Red for emergency platforms
                 } else if (platform.boundary) {
                     color = '#f39c12'; // Orange for boundary platforms
-                } else if (platform.type === 'platform') {
-                    color = '#2c3e50'; // Dark gray for regular platforms
+                } else {
+                    // Color by cluster type for visual variety
+                    switch (platform.clusterType) {
+                        case 'stair':
+                            color = '#3498db'; // Blue for stair clusters
+                            break;
+                        case 'overhang':
+                            color = '#9b59b6'; // Purple for overhang clusters
+                            break;
+                        case 'stack':
+                            color = '#2ecc71'; // Green for stack clusters
+                            break;
+                        case 'scattered':
+                            color = '#34495e'; // Dark gray for scattered clusters
+                            break;
+                        case 'strategic':
+                            color = '#1abc9c'; // Teal for strategic platforms
+                            break;
+                        default:
+                            color = '#2c3e50'; // Default gray
+                    }
                 }
                 
-                this.drawRect(
-                    platform.x - platform.width/2,
-                    platform.y - platform.height/2,
-                    platform.width,
-                    platform.height,
-                    color
-                );
+                // Render platform with size-appropriate visual style
+                this.renderEnhancedPlatform(platform, color);
             });
             
             // Render ceilings
@@ -256,6 +276,48 @@ class Renderer {
         }
         
         this.ctx.stroke();
+    }
+    
+    renderEnhancedPlatform(platform, color) {
+        const x = platform.x - platform.width / 2;
+        const y = platform.y - platform.height / 2;
+        const width = platform.width;
+        const height = platform.height;
+        
+        // Base platform rectangle
+        this.drawRect(x, y, width, height, color);
+        
+        // Add visual enhancements based on platform properties
+        this.ctx.strokeStyle = this.adjustColor(color, -20); // Darker border
+        this.ctx.lineWidth = Math.max(1, height / 10); // Thicker border for thicker platforms
+        this.ctx.strokeRect(x, y, width, height);
+        
+        // Add highlight for thicker platforms
+        if (height > 25) {
+            this.ctx.fillStyle = this.adjustColor(color, 30); // Lighter highlight
+            this.ctx.fillRect(x + 2, y + 2, width - 4, Math.max(4, height / 4));
+        }
+        
+        // Add cluster type indicators for debugging (small text)
+        if (platform.clusterType && platform.clusterType !== 'emergency') {
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = '8px monospace';
+            this.ctx.fillText(
+                platform.clusterType.charAt(0).toUpperCase(), 
+                x + 4, 
+                y + height - 4
+            );
+        }
+    }
+    
+    adjustColor(color, amount) {
+        // Simple color adjustment function
+        const hex = color.replace('#', '');
+        const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) + amount));
+        const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) + amount));
+        const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) + amount));
+        
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
     
     renderPlayer(player) {
