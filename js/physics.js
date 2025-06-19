@@ -61,6 +61,48 @@ class PhysicsManager {
             label: 'ceiling2'
         });
         
+        // Higher ceiling sections for extended vertical testing
+        const ceiling3 = Matter.Bodies.rectangle(250, -100, 140, 20, {
+            isStatic: true,
+            label: 'ceiling3'
+        });
+        
+        const ceiling4 = Matter.Bodies.rectangle(550, -150, 160, 20, {
+            isStatic: true,
+            label: 'ceiling4'
+        });
+        
+        const ceiling5 = Matter.Bodies.rectangle(200, -250, 120, 20, {
+            isStatic: true,
+            label: 'ceiling5'
+        });
+        
+        const ceiling6 = Matter.Bodies.rectangle(600, -300, 100, 20, {
+            isStatic: true,
+            label: 'ceiling6'
+        });
+        
+        // High platforms for rope attachment testing
+        const highPlatform1 = Matter.Bodies.rectangle(400, -50, 100, 20, {
+            isStatic: true,
+            label: 'highPlatform1'
+        });
+        
+        const highPlatform2 = Matter.Bodies.rectangle(180, -180, 80, 20, {
+            isStatic: true,
+            label: 'highPlatform2'
+        });
+        
+        const highPlatform3 = Matter.Bodies.rectangle(620, -220, 90, 20, {
+            isStatic: true,
+            label: 'highPlatform3'
+        });
+        
+        const highPlatform4 = Matter.Bodies.rectangle(300, -350, 110, 20, {
+            isStatic: true,
+            label: 'highPlatform4'
+        });
+        
         // Vertical pillars for varied attachment
         const pillar1 = Matter.Bodies.rectangle(350, 380, 20, 140, {
             isStatic: true,
@@ -72,11 +114,28 @@ class PhysicsManager {
             label: 'pillar2'
         });
         
+        // Higher vertical pillars for rope wrapping testing
+        const highPillar1 = Matter.Bodies.rectangle(150, -80, 20, 160, {
+            isStatic: true,
+            label: 'highPillar1'
+        });
+        
+        const highPillar2 = Matter.Bodies.rectangle(650, -120, 20, 140, {
+            isStatic: true,
+            label: 'highPillar2'
+        });
+        
+        const highPillar3 = Matter.Bodies.rectangle(380, -200, 20, 100, {
+            isStatic: true,
+            label: 'highPillar3'
+        });
+        
         this.boundaries = [
             ground, leftWall, rightWall,
             platform1, platform2, platform3, platform4,
-            ceiling1, ceiling2,
-            pillar1, pillar2
+            ceiling1, ceiling2, ceiling3, ceiling4, ceiling5, ceiling6,
+            highPlatform1, highPlatform2, highPlatform3, highPlatform4,
+            pillar1, pillar2, highPillar1, highPillar2, highPillar3
         ];
         
         this.boundaries.forEach(boundary => {

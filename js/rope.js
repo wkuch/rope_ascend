@@ -8,7 +8,7 @@ class Rope {
         };
         
         this.currentState = this.states.DETACHED;
-        this.maxRange = 200;
+        this.maxRange = 400;
         this.minPivotDistance = 15; // Minimum distance between pivot points
         
         // Multi-segment rope data
@@ -508,6 +508,8 @@ class Rope {
     checkPivotRemoval(playerPos) {
         if (this.pivotPoints.length === 0) return;
         
+        /*
+        //No direct path detection as it breaks wrapping around an object fully
         // Check if we can create a direct line from player to attachment without any pivots
         const directPath = !this.lineIntersectsAnyObstacle(playerPos, this.attachmentPoint);
         
@@ -519,6 +521,7 @@ class Rope {
             this.lastPivotChangeFrame = this.frameCounter;
             return;
         }
+        */
         
         // Check each pivot to see if it's still needed
         for (let i = this.pivotPoints.length - 1; i >= 0; i--) {

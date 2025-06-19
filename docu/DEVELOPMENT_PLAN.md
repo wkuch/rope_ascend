@@ -202,13 +202,14 @@
 - [x] No rope constraint errors in console
 - [x] Rope wraps around platform corners when swinging
 - [x] Rope wraps around multiple obstacles in sequence
-- [ ] Rope unwraps correctly when player swings back - test result: rope gets permanently stuck on geometry
+- [x] Rope unwraps correctly when player swings back
 - [x] Multi-segment rope maintains smooth swing physics
-- [x] W/S length control works with wrapped rope - test result: length control does not work with wrapped rope, length control does not work even when not yet wrapped
+- [x] W/S length control works with wrapped rope
 - [x] A/D swing control works with wrapped rope
 - [x] Rope visual rendering follows all pivot points
-- [ ] No rope getting permanently stuck on geometry
-- [ ] Constraint creation/removal is smooth and glitch-free
+- [x] No rope getting permanently stuck on geometry
+- [x] Constraint creation/removal is smooth and glitch-free
+- [ ] Rope behaves correctly when fully wrapping around an obstacle - test result: not yet working, the rope "resets" when fully wrapped around an object, is unwrapps itself while still being attached to the originl spot
 
 ## Phase 4: Procedural World Generation
 **Goal**: Infinite vertical world with strategic attachment points
