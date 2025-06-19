@@ -209,12 +209,16 @@
 - [x] Rope visual rendering follows all pivot points
 - [x] No rope getting permanently stuck on geometry
 - [x] Constraint creation/removal is smooth and glitch-free
-- [ ] Rope behaves correctly when fully wrapping around an obstacle - test result: not yet working, the rope "resets" when fully wrapped around an object, is unwrapps itself while still being attached to the originl spot
+- [x] Rope behaves correctly when fully wrapping around an obstacle
 
 ## Phase 4: Procedural World Generation
 **Goal**: Infinite vertical world with strategic attachment points
 
 **PHASE 4 SCOPE LIMITS**: Implement world generation and streaming. No hazards or scoring yet.
+
+### Step 4.0: 
+- remove the test obstacles
+- and walls for testing in earlier phases from the world
 
 ### Step 4.1: Basic Wall Generation
 - `js/world.js`: Chunk-based world generation (400px chunks)
@@ -239,6 +243,9 @@
 - Add outcroppings and ceiling sections for varied gameplay
 - Guarantee playable paths through generated world
 - **Verification**: Player can always progress upward, no impossible sections
+
+### Step 4.5: reate more interesting obstacles
+ 
 
 **PHASE 4 SUCCESS CRITERIA**:
 - Procedural walls generate consistently and look natural

@@ -11,6 +11,7 @@ class Game {
         this.camera = new Camera(this.canvas.width, this.canvas.height);
         this.player = new Player(400, 100, this.physics);
         this.rope = new Rope(this.physics);
+        this.world = new WorldGenerator(this.physics);
         this.renderer = new Renderer(this.canvas);
         
         this.state = 'running';
@@ -52,10 +53,11 @@ class Game {
         this.player.update(deltaTime, this.input);
         this.rope.update(this.player, this.input, this.camera);
         this.camera.update(this.player.getPosition());
+        this.world.update(this.camera.getPosition().y);
     }
     
     render() {
-        this.renderer.render(this.camera, this.player, this.physics, this.rope);
+        this.renderer.render(this.camera, this.player, this.physics, this.rope, this.world);
     }
 }
 

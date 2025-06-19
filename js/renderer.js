@@ -31,7 +31,7 @@ class Renderer {
         this.ctx.stroke();
     }
     
-    render(camera, player, physics, rope) {
+    render(camera, player, physics, rope, world) {
         this.clear();
         
         // Render game world with camera transform
@@ -40,6 +40,7 @@ class Renderer {
         this.ctx.translate(transform.x, transform.y);
         
         this.renderBoundaries(physics.getBoundaries());
+        this.renderWorld(world);
         this.renderPlayer(player);
         this.renderRope(player, rope);
         this.renderVelocityArrow(player);
@@ -47,7 +48,7 @@ class Renderer {
         this.ctx.restore();
         
         // Render debug UI in screen space (no camera transform)
-        this.renderDebugUI(camera, player, rope);
+        this.renderDebugUI(camera, player, rope, world);
     }
     
     renderVelocityArrow(player) {
@@ -136,7 +137,7 @@ class Renderer {
         }
     }
     
-    renderDebugUI(camera, player, rope) {
+    renderDebugUI(camera, player, rope, world) {
         this.ctx.fillStyle = '#2c3e50';
         this.ctx.font = '14px monospace';
         
@@ -144,6 +145,7 @@ class Renderer {
         const vel = player.getVelocity();
         const camPos = camera.getPosition();
         const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+        const stats = world ? world.getStreamingStats() : {};
         
         const debugInfo = [
             `Player State: ${player.getState()}`,
@@ -153,6 +155,9 @@ class Renderer {
             `Camera Pos: (${Math.round(camPos.x)}, ${Math.round(camPos.y)})`,
             `Rope State: ${rope.getState()}`,
             `Rope Length: ${rope.isAttached() ? Math.round(rope.getRopeLength()) : 'N/A'}`,
+            `Active Chunks: ${stats.activeChunks || 0} | Bodies: ${stats.totalPhysicsBodies || 0}`,
+            `Generated: ${stats.totalGenerated || 0} | Removed: ${stats.totalRemoved || 0}`,
+            `Emergency: ${stats.emergencyPlatforms || 0} | Boundary: ${stats.boundaryPlatforms || 0}`,
             `Controls: LMB=Fire Rope, A/D=Swing, W=Shorten, S=Lengthen`
         ];
         
@@ -176,6 +181,81 @@ class Renderer {
                 '#34495e'
             );
         });
+    }
+    
+    renderWorld(world) {
+        if (!world) return;
+        
+        const chunks = world.getActiveChunks();
+        
+        chunks.forEach(chunk => {
+            // Render wall coordinates as connected lines (visual guide)
+            this.renderWallCoordinates(chunk.leftWallCoords, '#34495e');
+            this.renderWallCoordinates(chunk.rightWallCoords, '#34495e');
+            
+            // Render platforms with different colors based on type
+            chunk.platforms.forEach(platform => {
+                let color = '#2c3e50'; // Default platform color
+                
+                if (platform.emergency) {
+                    color = '#e74c3c'; // Red for emergency platforms
+                } else if (platform.boundary) {
+                    color = '#f39c12'; // Orange for boundary platforms
+                } else if (platform.type === 'platform') {
+                    color = '#2c3e50'; // Dark gray for regular platforms
+                }
+                
+                this.drawRect(
+                    platform.x - platform.width/2,
+                    platform.y - platform.height/2,
+                    platform.width,
+                    platform.height,
+                    color
+                );
+            });
+            
+            // Render ceilings
+            chunk.ceilings.forEach(ceiling => {
+                this.drawRect(
+                    ceiling.x - ceiling.width/2,
+                    ceiling.y - ceiling.height/2,
+                    ceiling.width,
+                    ceiling.height,
+                    '#2c3e50'
+                );
+            });
+            
+            // Debug: Render physics bodies with semi-transparent overlay
+            chunk.physicsBodies.forEach(body => {
+                const pos = body.position;
+                const bounds = body.bounds;
+                const width = bounds.max.x - bounds.min.x;
+                const height = bounds.max.y - bounds.min.y;
+                
+                this.ctx.fillStyle = 'rgba(255, 0, 0, 0.1)'; // Semi-transparent red
+                this.ctx.fillRect(
+                    pos.x - width/2,
+                    pos.y - height/2,
+                    width,
+                    height
+                );
+            });
+        });
+    }
+    
+    renderWallCoordinates(coords, color) {
+        if (coords.length < 2) return;
+        
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        
+        this.ctx.moveTo(coords[0].x, coords[0].y);
+        for (let i = 1; i < coords.length; i++) {
+            this.ctx.lineTo(coords[i].x, coords[i].y);
+        }
+        
+        this.ctx.stroke();
     }
     
     renderPlayer(player) {
