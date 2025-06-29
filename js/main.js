@@ -16,6 +16,7 @@ class Game {
         this.scoring = new ScoringSystem();
         this.gameState = new GameStateManager();
         this.renderer = new Renderer(this.canvas);
+        this.logger = new Logger(this);
         
         // Focus the canvas to receive keyboard events
         this.canvas.focus();
@@ -102,6 +103,15 @@ class Game {
             this.player.setState('dead');
             this.scoring.saveHighScore();
             this.gameState.transitionTo('gameOver');
+        }
+
+        // Log game state
+        this.logger.logState();
+
+        // Check for log download trigger
+        if (this.input.isKeyJustPressed('KeyL')) {
+            console.log("'L' key pressed, attempting to download log...");
+            this.logger.downloadLog();
         }
     }
     

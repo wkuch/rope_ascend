@@ -581,7 +581,7 @@ class Rope {
         return playerDistance >= minRemovalDistance && pathClear && straightEnough;
     }
       
-    isAlmostStraight(prevPos, pivotPos, nextPos, maxDeviationDeg = 10) {
+    isAlmostStraight(prevPos, pivotPos, nextPos, maxDeviationDeg = 25) {
         const v1 = {
           x: prevPos.x - pivotPos.x,
           y: prevPos.y - pivotPos.y

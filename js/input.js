@@ -10,6 +10,7 @@ class InputManager {
         };
         
         this.keys = {};
+        this.prevKeys = {};
         
         this.setupEventListeners();
     }
@@ -56,6 +57,7 @@ class InputManager {
     
     endFrame() {
         // Reset mouse state flags at end of frame
+        this.prevKeys = { ...this.keys };
         this.mouse.pressed = false;
         this.mouse.released = false;
     }
@@ -78,5 +80,9 @@ class InputManager {
     
     isMouseReleased() {
         return this.mouse.released;
+    }
+
+    isKeyJustPressed(keyCode) {
+        return this.keys[keyCode] && !this.prevKeys[keyCode];
     }
 }

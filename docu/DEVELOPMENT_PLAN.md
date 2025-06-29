@@ -321,36 +321,121 @@
 - [x] State transitions are smooth without glitches
 - [x] UI elements are readable and properly positioned
 
-## Phase 6: Polish & Optimization
+## Phase 6: Rope System Refinement & Bug Fixing
+**Goal**: Address edge cases and bugs in the rope's environmental interaction system to ensure it is robust and feels intuitive under all conditions.
+
+**PHASE 6 SCOPE LIMITS**: Focus exclusively on the rope's interaction with world geometry. No new features, visual polish, or other system changes.
+
+---
+
+#### **Step 6.1: Develop a Contextual Logging System**
+
+**Objective**: Create a system to log game state to a file for offline analysis, triggered by a key press to capture the moments right before and after a bug occurs.
+
+*   **Triggered Logging**:
+    *   Implement a key press (e.g., `L` for "log") that, when pressed, saves the last 10 seconds of game state data to a timestamped log file (e.g., `rope_log_2025-06-25_14-32-15.json`).
+    *   This avoids constant file I/O and keeps the logs focused on the problematic event.
+
+*   **Data to Log (per frame)**:
+    *   **Player State**: `position`, `velocity`, `currentState` (e.g., `FALLING`, `ROPE_ATTACHED`).
+    *   **Rope State**: `isAttached`, `attachmentPoint`, `ropeLength`, `pivotPoints` (the array of all points the rope is wrapped around).
+    *   **Nearby Geometry**: The geometry and position of the obstacle(s) the rope is currently interacting with or attached to. This is crucial for recreating the scenario.
+    *   **Input State**: `mouseX`, `mouseY`, `isMouseDown`, `w_keyDown`, `s_keyDown`, `a_keyDown`, `d_keyDown`.
+
+*   **Log Format**:
+    *   Use JSON for structured, machine-readable logs. Each log file will contain an array of frame-by-frame state objects.
+
+**Verification**:
+*   Pressing the log key creates a new, timestamped `.json` file.
+*   The file contains a valid JSON array of game state snapshots for the preceding 10 seconds.
+*   The logged data accurately reflects the player, rope, and environmental state.
+
+---
+
+#### **Step 6.2: Bug Reproduction & Analysis**
+
+**Objective**: Systematically reproduce, log, and analyze the three primary bug categories.
+
+*   **Bug 1: Improper Sticking**:
+    *   **Reproduction**: Play the game with the specific goal of making the rope stick to flat surfaces or corners where it shouldn't.
+    *   **Action**: When the bug occurs, immediately press the log key.
+    *   **Analysis**: Examine the log file to see the sequence of events. Check the rope's pivot point calculations and the geometry of the surface it's sticking to. Hypothesize why the unwrapping logic failed.
+
+*   **Bug 2: Failure to Unwrap**:
+    *   **Reproduction**: Create scenarios where the rope wraps around an object and then fails to unwrap as the player swings back.
+    *   **Action**: Log the event.
+    *   **Analysis**: Review the logs. The issue is likely in the logic that detects when a pivot point is no longer needed. Check the conditions for pivot point removal.
+
+*   **Bug 3: Small Obstacle Glitch (Player Fling)**:
+    *   **Reproduction**: Intentionally swing into and around small, clustered, or thin platforms until the physics glitch occurs. This is often a result of rapid constraint changes.
+    *   **Action**: Log the event.
+    *   **Analysis**: This is the most critical bug. The logs will be essential. Look for rapid creation and destruction of pivot points, or constraints being applied in a conflicting manner. This might be a sign that the physics engine is getting unstable updates.
+
+---
+
+#### **Step 6.3: Implement Fixes**
+
+**Objective**: Based on the analysis, implement targeted fixes for each bug class.
+
+*   **For Improper Sticking / Failure to Unwrap**:
+    *   **Potential Fix**: Refine the pivot point removal logic. The condition for removing a pivot should be that the rope segment from the player to the *next* pivot point is unobstructed. Add a small tolerance or "slop" to prevent the rope from getting caught on near-perfectly aligned corners.
+    *   **Potential Fix**: Improve the "line-of-sight" check between rope segments.
+
+*   **For Small Obstacle Glitch**:
+    *   **Potential Fix**: Introduce a "debounce" or cooldown for pivot point changes. Don't allow a new pivot to be created within a few milliseconds of the last one being removed, or on the same obstacle.
+    *   **Potential Fix**: Add a sanity check. If a calculated launch velocity is absurdly high, cap it to a reasonable maximum to prevent the player from being flung into oblivion. This is a safety net, not a fix for the root cause.
+    *   **Potential Fix**: Temporarily merge nearby small obstacles into a single, simpler convex hull for the purpose of rope interaction. This would smooth out the geometry and prevent rapid pivot changes.
+
+---
+
+#### **Step 6.4: Regression Testing**
+
+**Objective**: Ensure that the fixes have not introduced new bugs or negatively impacted the feel of the rope.
+
+*   **Action**: Play the game extensively, focusing on the scenarios that previously caused bugs.
+*   **Action**: Perform general gameplay testing to ensure the rope still feels fluid and responsive in normal situations. Test swinging, length changes, and wrapping on simple, large obstacles.
+
+---
+
+**PHASE 6 SUCCESS CRITERIA**:
+*   The logging system is functional and provides the necessary data for debugging.
+*   The three major bugs (improper sticking, failure to unwrap, and physics flinging) are resolved.
+*   The rope interacts with complex and simple geometry in a predictable, stable, and intuitive manner.
+*   The "feel" of the rope physics is preserved or improved.
+*   The game is significantly more robust and less prone to physics-related errors.
+
+
+
+## Phase 7: Polish & Optimization
 **Goal**: Smooth 60fps gameplay with satisfying feel
 
-**PHASE 6 SCOPE LIMITS**: Final polish and optimization. This is the final phase before release.
+**PHASE 7 SCOPE LIMITS**: Final polish and optimization. This is the final phase before release.
 
-### Step 6.1: Physics Tuning
+### Step 7.1: Physics Tuning
 - Optimize Matter.js engine settings for performance
 - Fine-tune player mass, gravity, rope stiffness for best feel
 - Ensure consistent 60fps with complex rope physics
 - **Verification**: Smooth gameplay, responsive controls, stable framerate
 
-### Step 6.2: Visual Polish
+### Step 7.2: Visual Polish
 - Screen shake on impact (velocity-based)  
 - Rope visual effects (tension, stretch)
 - Improved rendering with better colors and effects
 - **Verification**: Visual feedback enhances gameplay without performance cost
 
-### Step 6.3: Performance Optimization
+### Step 7.3: Performance Optimization
 - Viewport culling for rendering efficiency
 - Physics body sleeping and memory cleanup
 - Profiling and optimization of bottlenecks
 - **Verification**: Stable performance over extended play sessions
 
-### Step 6.4: Final Gameplay Tuning
+### Step 7.4: Final Gameplay Tuning
 - Hazard rise speed balancing
 - World generation parameter tuning
 - Control responsiveness refinement
 - **Verification**: Satisfying difficulty curve, intuitive controls
 
-**PHASE 6 SUCCESS CRITERIA**:
+**PHASE 7 SUCCESS CRITERIA**:
 - Game runs consistently at 60fps
 - Controls feel responsive and satisfying
 - Visual effects enhance gameplay without distracting
@@ -361,7 +446,7 @@
 - All systems work together harmoniously
 - Game is ready for release
 
-**PHASE 6 TESTING CHECKLIST**:
+**PHASE 7 TESTING CHECKLIST**:
 - [ ] Frame rate stays consistently at 60fps
 - [ ] No frame drops during intense rope swinging
 - [ ] Controls respond instantly to player input
@@ -380,6 +465,7 @@
 - **Phase 3**: Rope system enables basic swinging gameplay
 - **Phase 4**: Infinite world generation with guaranteed playability
 - **Phase 5**: Complete game with win/lose conditions and scoring
-- **Phase 6**: Polished 60fps experience with satisfying rope physics
+- **Phase 6**: Robust rope-wrapping and interaction system with major bugs fixed.
+- **Phase 7**: Polished 60fps experience with satisfying rope physics
 
 Each phase builds incrementally with clear verification before proceeding.
