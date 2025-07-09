@@ -64,17 +64,27 @@ class Renderer {
         this.ctx.stroke();
     }
     
-    drawKunaiAttachment(attachmentPoint, playerPos) {
+    drawKunaiAttachment(attachmentPoint, playerPos, pivotPoints = []) {
         // Fall back to circle if sprites aren't loaded yet
         if (!this.spritesLoaded || !this.sprites.kunai) {
             this.drawCircle(attachmentPoint.x, attachmentPoint.y, 4, '#FF6B35');
             return;
         }
         
-        // Calculate angle from player to attachment point
-        const dx = attachmentPoint.x - playerPos.x;
-        const dy = attachmentPoint.y - playerPos.y;
-        const angle = Math.atan2(dy, dx);
+        // Only rotate kunai if there are no pivot points (rope is straight)
+        let angle = 0;
+        if (pivotPoints.length === 0) {
+            // Calculate angle from player to attachment point for straight rope
+            const dx = attachmentPoint.x - playerPos.x;
+            const dy = attachmentPoint.y - playerPos.y;
+            angle = Math.atan2(dy, dx);
+        } else {
+            // When rope is wrapped, use a fixed angle or the angle from last pivot
+            const lastPivot = pivotPoints[pivotPoints.length - 1];
+            const dx = attachmentPoint.x - lastPivot.x;
+            const dy = attachmentPoint.y - lastPivot.y;
+            angle = Math.atan2(dy, dx);
+        }
         
         // Position kunai outside the object it's attached to
         const offset = 11; // Distance to pull kunai out from the wall
@@ -198,7 +208,7 @@ class Renderer {
             }
             
             // Draw attachment point as kunai
-            this.drawKunaiAttachment(attachmentPoint, playerPos);
+            this.drawKunaiAttachment(attachmentPoint, playerPos, pivotPoints);
             
             // Draw rope length indicator near attachment point
             this.ctx.fillStyle = '#FFFFFF';
