@@ -3,6 +3,9 @@ class Renderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         
+        // Disable anti-aliasing to prevent gaps between tiles
+        this.ctx.imageSmoothingEnabled = false;
+        
         // Sprite loading system
         this.sprites = {};
         this.spritesLoaded = false;
@@ -15,7 +18,10 @@ class Renderer {
         const spriteList = [
             { name: 'player_idle', src: 'assets/idle.png' },
             { name: 'player_swing', src: 'assets/swing.png' },
-            { name: 'kunai', src: 'assets/kunai.png' }
+            { name: 'kunai', src: 'assets/kunai.png' },
+            { name: 'obstacle_corner', src: 'assets/corner.png' },
+            { name: 'obstacle_inside', src: 'assets/inside.png' },
+            { name: 'obstacle_side', src: 'assets/side.png' }
         ];
         
         let loadedCount = 0;
@@ -29,7 +35,7 @@ class Renderer {
                 
                 if (loadedCount === totalSprites) {
                     this.spritesLoaded = true;
-                    console.log('All player sprites loaded successfully');
+                    console.log('All sprites loaded successfully');
                 }
             };
             img.onerror = () => {
@@ -202,10 +208,8 @@ class Renderer {
                 );
             }
             
-            // Draw pivot points
-            for (const pivot of pivotPoints) {
-                this.drawCircle(pivot.x, pivot.y, 6, '#FF0000'); // Red pivot points
-            }
+            // Pivot points are visually represented by the rope line wrapping around corners
+            // No need for additional visual indicators
             
             // Draw attachment point as kunai
             this.drawKunaiAttachment(attachmentPoint, playerPos, pivotPoints);
@@ -454,51 +458,24 @@ class Renderer {
             this.renderWallCoordinates(chunk.leftWallCoords, '#34495e');
             this.renderWallCoordinates(chunk.rightWallCoords, '#34495e');
             
-            // Render platforms with different colors based on cluster type
+            // Render platforms with textures
             chunk.platforms.forEach(platform => {
-                let color = '#2c3e50'; // Default platform color
-                
-                // Emergency and boundary platforms take priority
-                if (platform.emergency) {
-                    color = '#e74c3c'; // Red for emergency platforms
-                } else if (platform.boundary) {
-                    color = '#f39c12'; // Orange for boundary platforms
-                } else {
-                    // Color by cluster type for visual variety
-                    switch (platform.clusterType) {
-                        case 'stair':
-                            color = '#3498db'; // Blue for stair clusters
-                            break;
-                        case 'overhang':
-                            color = '#9b59b6'; // Purple for overhang clusters
-                            break;
-                        case 'stack':
-                            color = '#2ecc71'; // Green for stack clusters
-                            break;
-                        case 'scattered':
-                            color = '#34495e'; // Dark gray for scattered clusters
-                            break;
-                        case 'strategic':
-                            color = '#1abc9c'; // Teal for strategic platforms
-                            break;
-                        default:
-                            color = '#2c3e50'; // Default gray
-                    }
-                }
-                
-                // Render platform with size-appropriate visual style
-                this.renderEnhancedPlatform(platform, color);
+                // Render platform with texture and rotation
+                this.renderEnhancedPlatform(platform);
             });
             
             // Render ceilings
             chunk.ceilings.forEach(ceiling => {
-                this.drawRect(
-                    ceiling.x - ceiling.width/2,
-                    ceiling.y - ceiling.height/2,
-                    ceiling.width,
-                    ceiling.height,
-                    '#2c3e50'
-                );
+                const x = ceiling.x - ceiling.width/2;
+                const y = ceiling.y - ceiling.height/2;
+                
+                // Use inside texture for ceilings
+                this.drawTileableTexture('obstacle_inside', x, y, ceiling.width, ceiling.height);
+                
+                // Add subtle border
+                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(x, y, ceiling.width, ceiling.height);
             });
             
             // Debug: Render physics bodies with semi-transparent overlay
@@ -534,30 +511,34 @@ class Renderer {
         this.ctx.stroke();
     }
     
-    renderEnhancedPlatform(platform, color) {
+    renderEnhancedPlatform(platform) {
         const x = platform.x - platform.width / 2;
         const y = platform.y - platform.height / 2;
         const width = platform.width;
         const height = platform.height;
         
-        // Base platform rectangle
-        this.drawRect(x, y, width, height, color);
+        // Get appropriate texture and rotation for this platform
+        const { texture, rotation } = this.getTextureAndRotationForPlatform(platform);
         
-        // Add visual enhancements based on platform properties
-        this.ctx.strokeStyle = this.adjustColor(color, -20); // Darker border
-        this.ctx.lineWidth = Math.max(1, height / 10); // Thicker border for thicker platforms
+        // Use tileable texture with rotation
+        this.drawTileableTexture(texture, x, y, width, height, rotation);
+        
+        // Add very subtle border to define platform edges (optional)
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)'; // Very light semi-transparent black border
+        this.ctx.lineWidth = 1;
         this.ctx.strokeRect(x, y, width, height);
-        
-        // Add highlight for thicker platforms
-        if (height > 25) {
-            this.ctx.fillStyle = this.adjustColor(color, 30); // Lighter highlight
-            this.ctx.fillRect(x + 2, y + 2, width - 4, Math.max(4, height / 4));
-        }
         
         // Add cluster type indicators for debugging (small text)
         if (platform.clusterType && platform.clusterType !== 'emergency') {
             this.ctx.fillStyle = '#FFFFFF';
             this.ctx.font = '8px monospace';
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeText(
+                platform.clusterType.charAt(0).toUpperCase(), 
+                x + 4, 
+                y + height - 4
+            );
             this.ctx.fillText(
                 platform.clusterType.charAt(0).toUpperCase(), 
                 x + 4, 
@@ -574,6 +555,114 @@ class Renderer {
         const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) + amount));
         
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+    
+    getTextureAndRotationForPlatform(platform) {
+        // For now, use a simple approach - we'll improve this as needed
+        // Most platforms will use the inside texture, with side/corner textures for special cases
+        
+        // Emergency and boundary platforms use specific textures
+        if (platform.emergency) {
+            return { texture: 'obstacle_corner', rotation: 0 }; // Bottom-left corner as-is
+        } else if (platform.boundary) {
+            return { texture: 'obstacle_side', rotation: 0 }; // Bottom side as-is
+        }
+        
+        // For regular platforms, use a simple distribution of textures
+        // This creates visual variety without complex edge detection
+        const platformId = platform.x + platform.y; // Simple hash based on position
+        
+        switch (platform.clusterType) {
+            case 'stair':
+                // Alternate between side (bottom) and side rotated 90° (right edge)
+                const stairRotation = (platformId % 2 === 0) ? 0 : Math.PI / 2;
+                return { texture: 'obstacle_side', rotation: stairRotation };
+                
+            case 'overhang':
+                // Use corner texture with different rotations
+                const cornerRotations = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
+                const cornerIndex = Math.floor(platformId % 4);
+                return { texture: 'obstacle_corner', rotation: cornerRotations[cornerIndex] };
+                
+            case 'stack':
+                // Use inside texture (no rotation needed)
+                return { texture: 'obstacle_inside', rotation: 0 };
+                
+            case 'scattered':
+                // Mix of side textures with different rotations
+                const sideRotations = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
+                const sideIndex = Math.floor(platformId % 4);
+                return { texture: 'obstacle_side', rotation: sideRotations[sideIndex] };
+                
+            case 'strategic':
+                // Use corner texture with random rotation for variety
+                const strategicRotation = (platformId % 2 === 0) ? 0 : Math.PI;
+                return { texture: 'obstacle_corner', rotation: strategicRotation };
+                
+            default:
+                // Default to inside texture
+                return { texture: 'obstacle_inside', rotation: 0 };
+        }
+    }
+    
+    drawTileableTexture(texture, x, y, width, height, rotation = 0) {
+        if (!this.spritesLoaded || !this.sprites[texture]) {
+            // Fallback to solid color if texture not available
+            this.ctx.fillStyle = '#2c3e50';
+            this.ctx.fillRect(x, y, width, height);
+            return;
+        }
+        
+        const sprite = this.sprites[texture];
+        const tileWidth = sprite.width;
+        const tileHeight = sprite.height;
+        
+        // Calculate how many tiles we need in each direction
+        const tilesX = Math.ceil(width / tileWidth);
+        const tilesY = Math.ceil(height / tileHeight);
+        
+        // Save current context state
+        this.ctx.save();
+        
+        // Create clipping region to prevent texture from going outside the platform bounds
+        this.ctx.beginPath();
+        this.ctx.rect(x, y, width, height);
+        this.ctx.clip();
+        
+        // Draw tiles to fill the entire platform area
+        for (let tileX = 0; tileX < tilesX; tileX++) {
+            for (let tileY = 0; tileY < tilesY; tileY++) {
+                // Use Math.floor to avoid sub-pixel positioning that causes gaps
+                const drawX = Math.floor(x + tileX * tileWidth);
+                const drawY = Math.floor(y + tileY * tileHeight);
+                
+                // Apply rotation if specified
+                if (rotation !== 0) {
+                    this.ctx.save();
+                    this.ctx.translate(drawX + tileWidth/2, drawY + tileHeight/2);
+                    this.ctx.rotate(rotation);
+                    this.ctx.drawImage(
+                        sprite,
+                        -tileWidth/2,
+                        -tileHeight/2,
+                        tileWidth,
+                        tileHeight
+                    );
+                    this.ctx.restore();
+                } else {
+                    this.ctx.drawImage(
+                        sprite,
+                        drawX,
+                        drawY,
+                        tileWidth,
+                        tileHeight
+                    );
+                }
+            }
+        }
+        
+        // Restore context state
+        this.ctx.restore();
     }
     
     renderPlayer(player) {

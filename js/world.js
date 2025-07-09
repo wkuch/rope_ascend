@@ -204,7 +204,9 @@ class WorldGenerator {
         for (let i = 0; i < numPlatforms; i++) {
             const platformY = centerY - 50 + i * 100; // Even more vertical spread
             const extension = 120 + i * 50; // Extend further for challenge
-            const size = this.generatePlatformSize('medium');
+            // 30% chance of large platforms in overhangs for better visibility
+            const sizeType = Math.random() < 0.3 ? 'large' : 'medium';
+            const size = this.generatePlatformSize(sizeType);
             
             const platformX = isLeftSide ?
                 baseWallX + extension :
@@ -233,7 +235,9 @@ class WorldGenerator {
         for (let i = 0; i < numPlatforms; i++) {
             const platformY = centerY - (numPlatforms - 1) * verticalSpacing / 2 + i * verticalSpacing;
             const horizontalOffset = (Math.random() - 0.5) * 100; // ±50px offset (increased)
-            const size = this.generatePlatformSize('medium');
+            // 40% chance of large platforms in stacks for more interesting shapes
+            const sizeType = Math.random() < 0.4 ? 'large' : 'medium';
+            const size = this.generatePlatformSize(sizeType);
             
             platforms.push({
                 x: baseX + horizontalOffset,
@@ -257,7 +261,8 @@ class WorldGenerator {
         for (let i = 0; i < numPlatforms; i++) {
             const angle = (i / numPlatforms) * Math.PI * 2; // Distribute around circle
             const distance = 80 + Math.random() * spreadRadius;
-            const size = this.generatePlatformSize('medium');
+            // Use varied sizes for scattered platforms to create more visual interest
+            const size = this.generatePlatformSize('varied');
             
             const platformX = 400 + Math.cos(angle) * distance; // Center around chasm middle
             const platformY = centerY + Math.sin(angle) * distance * 0.3; // Flatten vertically even more
@@ -292,9 +297,26 @@ class WorldGenerator {
                 width = 140 + Math.random() * 60; // 140-200px
                 height = 25 + Math.random() * 15; // 25-40px
                 break;
+            case 'extra_large':
+                width = 200 + Math.random() * 150; // 200-350px (much larger)
+                height = 40 + Math.random() * 60; // 40-100px (much taller)
+                break;
             default: // 'varied'
-                width = 60 + Math.random() * 140; // 60-200px
-                height = 15 + Math.random() * 25; // 15-40px
+                // 20% chance of extra large, 30% large, 30% medium, 20% small
+                const sizeRoll = Math.random();
+                if (sizeRoll < 0.2) {
+                    width = 200 + Math.random() * 150; // 200-350px
+                    height = 40 + Math.random() * 60; // 40-100px
+                } else if (sizeRoll < 0.5) {
+                    width = 140 + Math.random() * 60; // 140-200px
+                    height = 25 + Math.random() * 15; // 25-40px
+                } else if (sizeRoll < 0.8) {
+                    width = 90 + Math.random() * 60; // 90-150px
+                    height = 20 + Math.random() * 15; // 20-35px
+                } else {
+                    width = 60 + Math.random() * 40; // 60-100px
+                    height = 15 + Math.random() * 10; // 15-25px
+                }
         }
         
         return { width, height };
