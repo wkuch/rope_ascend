@@ -14,7 +14,8 @@ class Renderer {
     loadSprites() {
         const spriteList = [
             { name: 'player_idle', src: 'assets/idle.png' },
-            { name: 'player_swing', src: 'assets/swing.png' }
+            { name: 'player_swing', src: 'assets/swing.png' },
+            { name: 'kunai', src: 'assets/kunai.png' }
         ];
         
         let loadedCount = 0;
@@ -61,6 +62,42 @@ class Renderer {
         this.ctx.moveTo(x1, y1);
         this.ctx.lineTo(x2, y2);
         this.ctx.stroke();
+    }
+    
+    drawKunaiAttachment(attachmentPoint, playerPos) {
+        // Fall back to circle if sprites aren't loaded yet
+        if (!this.spritesLoaded || !this.sprites.kunai) {
+            this.drawCircle(attachmentPoint.x, attachmentPoint.y, 4, '#FF6B35');
+            return;
+        }
+        
+        // Calculate angle from player to attachment point
+        const dx = attachmentPoint.x - playerPos.x;
+        const dy = attachmentPoint.y - playerPos.y;
+        const angle = Math.atan2(dy, dx);
+        
+        // Position kunai outside the object it's attached to
+        const offset = 11; // Distance to pull kunai out from the wall
+        const kunaiX = attachmentPoint.x - Math.cos(angle) * offset;
+        const kunaiY = attachmentPoint.y - Math.sin(angle) * offset;
+        
+        // Draw kunai sprite rotated to point away from player
+        this.ctx.save();
+        this.ctx.translate(kunaiX, kunaiY);
+        this.ctx.rotate(angle + Math.PI * 132 / 180); // Add 200 degrees clockwise
+        
+        // Draw kunai at reduced size to match game scale
+        const kunaiSize = 24; // Smaller than the 48x48 planned size
+        // Since tip is at top-left corner, offset so tip points toward attachment
+        this.ctx.drawImage(
+            this.sprites.kunai,
+            -12, // Move kunai left to better align with attachment point
+            -kunaiSize / 2, // Center vertically
+            kunaiSize,
+            kunaiSize
+        );
+        
+        this.ctx.restore();
     }
     
     render(camera, player, physics, rope, world, hazard, gameState, scoring) {
@@ -160,8 +197,8 @@ class Renderer {
                 this.drawCircle(pivot.x, pivot.y, 6, '#FF0000'); // Red pivot points
             }
             
-            // Draw attachment point indicator
-            this.drawCircle(attachmentPoint.x, attachmentPoint.y, 4, '#FF6B35');
+            // Draw attachment point as kunai
+            this.drawKunaiAttachment(attachmentPoint, playerPos);
             
             // Draw rope length indicator near attachment point
             this.ctx.fillStyle = '#FFFFFF';
