@@ -407,57 +407,149 @@
 
 
 ## Phase 7: Polish & Optimization
-**Goal**: Smooth 60fps gameplay with satisfying feel
+**Goal**: visually appealing and smooth gameplay
 
-**PHASE 7 SCOPE LIMITS**: Final polish and optimization. This is the final phase before release.
+**Assets required**: 
 
-### Step 7.1: Physics Tuning
-- Optimize Matter.js engine settings for performance
-- Fine-tune player mass, gravity, rope stiffness for best feel
-- Ensure consistent 60fps with complex rope physics
-- **Verification**: Smooth gameplay, responsive controls, stable framerate
+### Player Character Assets:
+- `player_idle.png` - 64x64px ninja worm character sprite (idle state)
+- `player_swinging.png` - 64x64px ninja worm character sprite (swinging state)
+- `player_falling.png` - 64x64px ninja worm character sprite (falling state)
+- `player_trail.png` - 32x32px particle for movement trail effect
 
-### Step 7.2: Visual Polish
-- Screen shake on impact (velocity-based)  
-- Rope visual effects (tension, stretch)
-- Improved rendering with better colors and effects
-- **Verification**: Visual feedback enhances gameplay without performance cost
+### Rope System Assets:
+- `rope_segment.png` - 16x16px rope segment texture (tileable)
+- `rope_knot.png` - 32x32px rope knot texture for pivot points
+- `rope_attachment.png` - 48x48px grappling hook/attachment point sprite
+- `rope_fire_particle.png` - 16x16px particle for rope firing effect
 
-### Step 7.3: Performance Optimization
+### Environment Assets:
+- `platform_stone.png` - 128x64px stone platform texture (tileable)
+- `platform_metal.png` - 128x64px metal platform texture (tileable)
+- `platform_wood.png` - 128x64px wood platform texture (tileable)
+- `wall_stone.png` - 128x128px stone wall texture (tileable)
+- `wall_metal.png` - 128x128px metal wall texture (tileable)
+- `ceiling_stone.png` - 128x64px stone ceiling texture (tileable)
+
+### Hazard Assets:
+- `hazard_base.png` - 800x100px hazard base texture
+- `hazard_wave.png` - 64x32px wave animation sprite sheet (8 frames)
+- `hazard_particle.png` - 16x16px danger particle for rising effect
+
+### Particle Effects:
+- `dust_particle.png` - 8x8px dust particle for impacts
+- `spark_particle.png` - 12x12px spark particle for rope attachment
+- `debris_particle.png` - 16x16px debris particle for destruction effects
+
+### UI Elements:
+- `ui_background.png` - 800x600px background gradient/texture
+- `button_normal.png` - 300x75px button background
+- `button_hover.png` - 300x75px button background (hover state)
+- `score_panel.png` - 375x150px score display background
+- `game_logo.png` - 600x150px game title logo
+
+### Step 7.1: Visual Polish
+**Goal**: Transform the game from basic shapes to a visually appealing experience with sprites, textures, and particle effects
+
+#### Step 7.1.1: Enhanced Player Character
+- Replace red circle with animated sprite system
+- Implement state-based animations (idle, swinging, falling)
+- Add velocity-based movement trail effect using particle system
+- Create screen shake effect for high-speed impacts
+- **Verification**: Player character has smooth animations and visual feedback
+
+#### Step 7.1.2: Rope Visual System Enhancement
+- Replace brown line with textured rope segments using rope_segment.png
+- Add rope physics-based visual effects (sag, tension indicators)
+- Implement particle effects for rope firing using rope_fire_particle.png
+- Enhanced pivot points with rope_knot.png and attachment with rope_attachment.png
+- **Verification**: Rope looks realistic with proper texturing and particle effects
+
+#### Step 7.1.3: Environment Visual Upgrade
+- Replace solid color rectangles with textured platform sprites
+- Add platform variety (stone, metal, wood) based on height and platform type
+- Implement wall texturing with stone/metal textures for depth and detail
+- Add visual indicators for special platforms (emergency, boundary)
+- **Verification**: Environment has rich textures and visual variety
+
+#### Step 7.1.4: Hazard Visual Enhancement
+- Replace solid red rectangle with animated hazard texture using hazard_base.png
+- Add animated wave effect using hazard_wave.png sprite sheet
+- Implement particle effects for rising hazard using hazard_particle.png
+- Add danger glow and atmospheric effects for better threat indication
+- **Verification**: Hazard looks menacing with smooth animations and particle effects
+
+#### Step 7.1.5: Particle System Implementation
+- Create comprehensive particle manager for dust, sparks, debris
+- Add impact effects when player hits surfaces using dust_particle.png
+- Implement rope attachment particle bursts using spark_particle.png
+- Add ambient atmospheric particles for immersion
+- **Verification**: Particle effects enhance gameplay feedback without performance impact
+
+#### Step 7.1.6: UI/UX Visual Polish
+- Replace text-based UI with textured panels using ui_background.png
+- Add game logo (game_logo.png) and improved typography
+- Implement button backgrounds (button_normal.png, button_hover.png)
+- Add score panel background (score_panel.png) for better visual hierarchy
+- Implement smooth transitions and animations for menu interactions
+- **Verification**: UI looks professional with consistent visual design
+
+
+### Step 7.2: Performance Optimization
 - Viewport culling for rendering efficiency
 - Physics body sleeping and memory cleanup
 - Profiling and optimization of bottlenecks
 - **Verification**: Stable performance over extended play sessions
 
-### Step 7.4: Final Gameplay Tuning
+### Step 7.3: Final Gameplay Tuning
 - Hazard rise speed balancing
 - World generation parameter tuning
 - Control responsiveness refinement
 - **Verification**: Satisfying difficulty curve, intuitive controls
 
 **PHASE 7 SUCCESS CRITERIA**:
-- Game runs consistently at 60fps
-- Controls feel responsive and satisfying
-- Visual effects enhance gameplay without distracting
-- Screen shake provides good impact feedback
-- Rope physics feel realistic and enjoyable
-- Difficulty curve is challenging but fair
-- Performance is stable over long play sessions
-- All systems work together harmoniously
-- Game is ready for release
+- Game runs consistently at 60fps with all visual enhancements
+- Player character has smooth sprite animations for all states
+- Rope system uses textured segments with realistic visual effects
+- Environment has rich textures and visual variety across all platforms
+- Hazard has menacing animated appearance with particle effects
+- Particle system enhances gameplay feedback without performance impact
+- UI has professional appearance with consistent visual design
+- All sprites and textures load properly without visual artifacts
+- Visual effects scale appropriately with game events
+- Overall art style is cohesive and visually appealing
 
 **PHASE 7 TESTING CHECKLIST**:
-- [ ] Frame rate stays consistently at 60fps
-- [ ] No frame drops during intense rope swinging
+- [ ] Frame rate stays consistently at 60fps with all visual enhancements
+- [ ] No frame drops during intense rope swinging with particle effects
 - [ ] Controls respond instantly to player input
+- [ ] Player character animations transition smoothly between states
+- [ ] Player trail effect scales properly with velocity
 - [ ] Screen shake feels satisfying on impacts
-- [ ] Rope visual effects look good and perform well
-- [ ] Physics feel realistic and fun to play with
-- [ ] Hazard speed creates appropriate pressure
-- [ ] World generation creates interesting challenges
-- [ ] Memory usage is stable over extended play
-- [ ] No performance degradation after long sessions
-- [ ] Game feels polished and complete
+- [ ] Rope segments render correctly with proper texturing
+- [ ] Rope pivot points display knot textures appropriately
+- [ ] Rope attachment point shows grappling hook sprite
+- [ ] Rope firing particle effects trigger on attachment
+- [ ] Platform textures tile correctly without visible seams
+- [ ] Different platform types (stone, metal, wood) display properly
+- [ ] Wall textures provide visual depth and detail
+- [ ] Emergency and boundary platforms have clear visual indicators
+- [ ] Hazard base texture animates smoothly
+- [ ] Hazard wave animation cycles properly through all frames
+- [ ] Hazard particle effects create menacing atmosphere
+- [ ] Impact particles (dust) appear when player hits surfaces
+- [ ] Rope attachment particles (sparks) burst on connection
+- [ ] Ambient atmospheric particles enhance immersion
+- [ ] UI background textures load and display correctly
+- [ ] Button hover states transition smoothly
+- [ ] Score panel background provides clear visual hierarchy
+- [ ] Game logo displays prominently on menu screen
+- [ ] All sprites and textures load without visual artifacts
+- [ ] Visual effects scale appropriately with game events
+- [ ] Overall art style is cohesive across all game elements
+- [ ] Memory usage remains stable with all visual assets loaded
+- [ ] No performance degradation after long sessions with particles
+- [ ] Game feels polished and visually complete
 
 ## Success Criteria:
 - **Phase 1**: Project loads without errors, basic structure works
