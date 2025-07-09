@@ -1,7 +1,7 @@
 class Player {
     constructor(x, y, physicsManager) {
         this.physicsManager = physicsManager;
-        this.radius = 8;
+        this.radius = 8; // Keep original physics radius for responsive swinging
         
         this.states = {
             FALLING: 'falling',

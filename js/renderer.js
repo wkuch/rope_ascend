@@ -3,7 +3,39 @@ class Renderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         
+        // Sprite loading system
+        this.sprites = {};
+        this.spritesLoaded = false;
+        this.loadSprites();
+        
         //console.log('Renderer initialized with canvas:', canvas.width, 'x', canvas.height);
+    }
+    
+    loadSprites() {
+        const spriteList = [
+            { name: 'player_idle', src: 'assets/idle.png' },
+            { name: 'player_swing', src: 'assets/swing.png' }
+        ];
+        
+        let loadedCount = 0;
+        const totalSprites = spriteList.length;
+        
+        spriteList.forEach(sprite => {
+            const img = new Image();
+            img.onload = () => {
+                this.sprites[sprite.name] = img;
+                loadedCount++;
+                
+                if (loadedCount === totalSprites) {
+                    this.spritesLoaded = true;
+                    console.log('All player sprites loaded successfully');
+                }
+            };
+            img.onerror = () => {
+                console.error('Failed to load sprite:', sprite.src);
+            };
+            img.src = sprite.src;
+        });
     }
     
     clear() {
@@ -499,6 +531,67 @@ class Renderer {
     
     renderPlayer(player) {
         const pos = player.getPosition();
-        this.drawCircle(pos.x, pos.y, player.getRadius(), '#e74c3c');
+        
+        // Fall back to circle if sprites aren't loaded yet
+        if (!this.spritesLoaded) {
+            this.drawCircle(pos.x, pos.y, player.getRadius(), '#e74c3c');
+            return;
+        }
+        
+        // Determine which sprite to use based on player state and velocity
+        const playerState = player.getState();
+        const velocity = player.getVelocity();
+        const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+        
+        let spriteName = 'player_idle'; // Default
+        
+        // Use idle sprite when player is nearly stationary (resting on platform)
+        if (speed < 0.5) {
+            spriteName = 'player_idle';
+        } else {
+            // Use swing sprite when moving (falling, swinging, or moving fast)
+            switch (playerState) {
+                case 'falling':
+                    spriteName = 'player_swing';
+                    break;
+                case 'rope_attached':
+                    spriteName = 'player_swing';
+                    break;
+                case 'dead':
+                    spriteName = 'player_swing';
+                    break;
+                default:
+                    spriteName = 'player_swing'; // Default to swing when moving
+            }
+        }
+        
+        const sprite = this.sprites[spriteName];
+        if (sprite) {
+            // Draw sprite centered on player position, scaled down to match game scale
+            const spriteSize = 32; // Display at 32x32 (half the original size)
+            
+            // Only apply directional flip when using swing sprite (when moving)
+            const shouldFlip = spriteName === 'player_swing' && velocity.x > 0; // Flip when moving right
+            
+            this.ctx.save();
+            this.ctx.translate(pos.x, pos.y);
+            
+            if (shouldFlip) {
+                this.ctx.scale(-1, 1); // Flip horizontally
+            }
+            
+            this.ctx.drawImage(
+                sprite,
+                -spriteSize / 2,
+                -spriteSize / 2,
+                spriteSize,
+                spriteSize
+            );
+            
+            this.ctx.restore();
+        } else {
+            // Fallback to circle if sprite not found
+            this.drawCircle(pos.x, pos.y, player.getRadius(), '#e74c3c');
+        }
     }
 }
