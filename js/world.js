@@ -33,6 +33,7 @@ class WorldGenerator {
         console.log('WorldGenerator initialized with chunk size:', this.chunkWidth, 'x', this.chunkHeight);
     }
     
+    
     generateChunk(chunkY) {
         const chunkId = `chunk_${chunkY}`;
         
@@ -49,7 +50,7 @@ class WorldGenerator {
             rightWallCoords: [],
             platforms: [],
             ceilings: [],
-            physicsBodies: []
+            physicsBodies: [],
         };
         
         // Generate wall coordinates for this chunk

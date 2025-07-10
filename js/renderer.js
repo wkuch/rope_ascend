@@ -11,6 +11,11 @@ class Renderer {
         this.spritesLoaded = false;
         this.loadSprites();
         
+        // Procedural texture cache
+        this.textureCache = new Map();
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenCtx = this.offscreenCanvas.getContext('2d');
+        
         //console.log('Renderer initialized with canvas:', canvas.width, 'x', canvas.height);
     }
     
@@ -460,38 +465,59 @@ class Renderer {
             
             // Render platforms with textures
             chunk.platforms.forEach(platform => {
-                // Render platform with texture and rotation
+                // Render platform with stone texture
                 this.renderEnhancedPlatform(platform);
             });
             
             // Render ceilings
             chunk.ceilings.forEach(ceiling => {
-                const x = ceiling.x - ceiling.width/2;
-                const y = ceiling.y - ceiling.height/2;
+                // Use center positioning to match physics bodies
+                const centerX = ceiling.x;
+                const centerY = ceiling.y;
                 
-                // Use inside texture for ceilings
-                this.drawTileableTexture('obstacle_inside', x, y, ceiling.width, ceiling.height);
+                // Use procedural texture for ceilings
+                this.drawProceduralTexture('ceiling', centerX, centerY, ceiling.width, ceiling.height, ceiling);
                 
                 // Add subtle border
+                const x = centerX - ceiling.width/2;
+                const y = centerY - ceiling.height/2;
                 this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
                 this.ctx.lineWidth = 1;
                 this.ctx.strokeRect(x, y, ceiling.width, ceiling.height);
             });
             
-            // Debug: Render physics bodies with semi-transparent overlay
+            // Debug visualization - only show platform and ceiling bodies
             chunk.physicsBodies.forEach(body => {
                 const pos = body.position;
                 const bounds = body.bounds;
                 const width = bounds.max.x - bounds.min.x;
                 const height = bounds.max.y - bounds.min.y;
                 
-                this.ctx.fillStyle = 'rgba(255, 0, 0, 0.1)'; // Semi-transparent red
-                this.ctx.fillRect(
-                    pos.x - width/2,
-                    pos.y - height/2,
-                    width,
-                    height
-                );
+                // Filter to only show platform and ceiling bodies
+                if (body.label && (body.label.includes('platform_') || body.label.includes('ceiling_'))) {
+                    // Use different colors for different types
+                    if (body.label.includes('platform_')) {
+                        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Red for platforms
+                    } else if (body.label.includes('ceiling_')) {
+                        this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)'; // Green for ceilings
+                    }
+                    
+                    this.ctx.fillRect(
+                        pos.x - width/2,
+                        pos.y - height/2,
+                        width,
+                        height
+                    );
+                    
+                    // Add label text for debugging
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '10px monospace';
+                    this.ctx.fillText(
+                        `${Math.round(width)}x${Math.round(height)}`,
+                        pos.x - width/2 + 2,
+                        pos.y - height/2 + 12
+                    );
+                }
             });
         });
     }
@@ -512,18 +538,30 @@ class Renderer {
     }
     
     renderEnhancedPlatform(platform) {
-        const x = platform.x - platform.width / 2;
-        const y = platform.y - platform.height / 2;
+        // Use center positioning to match physics bodies
+        const centerX = platform.x;
+        const centerY = platform.y;
         const width = platform.width;
         const height = platform.height;
         
-        // Get appropriate texture and rotation for this platform
-        const { texture, rotation } = this.getTextureAndRotationForPlatform(platform);
+        // Debug: Check if platform dimensions are consistent
+        const platformId = `${Math.round(centerX)}_${Math.round(centerY)}`;
+        if (platformId === '425_-1150' || platformId === '453_800') {
+            console.log('renderEnhancedPlatform:', {
+                platformId,
+                centerX, centerY, width, height,
+                originalPlatform: { x: platform.x, y: platform.y, width: platform.width, height: platform.height }
+            });
+        }
         
-        // Use tileable texture with rotation
-        this.drawTileableTexture(texture, x, y, width, height, rotation);
+        // Platform rendering is now handled by procedural generation
+        
+        // Use procedural texture generation with center positioning
+        this.drawProceduralTexture('platform', centerX, centerY, width, height, platform);
         
         // Add very subtle border to define platform edges (optional)
+        const x = centerX - width / 2;
+        const y = centerY - height / 2;
         this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)'; // Very light semi-transparent black border
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(x, y, width, height);
@@ -557,112 +595,483 @@ class Renderer {
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
     
-    getTextureAndRotationForPlatform(platform) {
-        // For now, use a simple approach - we'll improve this as needed
-        // Most platforms will use the inside texture, with side/corner textures for special cases
+    
+    drawProceduralTexture(obstacleType, centerX, centerY, width, height, platform = null) {
+        // Use single stone texture for all obstacles
+        const textureType = platform?.emergency ? 'emergency' : platform?.boundary ? 'boundary' : 'stone';
         
-        // Emergency and boundary platforms use specific textures
-        if (platform.emergency) {
-            return { texture: 'obstacle_corner', rotation: 0 }; // Bottom-left corner as-is
-        } else if (platform.boundary) {
-            return { texture: 'obstacle_side', rotation: 0 }; // Bottom side as-is
+        // Simplified cache key without biome
+        const cacheKey = `${obstacleType}_${width}_${height}_${textureType}`;
+        
+        // Debug logging - log specific platforms consistently
+        const platformId = `${Math.round(platform?.x || 0)}_${Math.round(platform?.y || 0)}`;
+        if (platform && (platformId === '425_-1150' || platformId === '453_800' || Math.random() < 0.01)) {
+            console.log('Platform rendering:', {
+                platformId,
+                centerX: Math.round(centerX),
+                centerY: Math.round(centerY), 
+                width: Math.round(width),
+                height: Math.round(height),
+                platformX: Math.round(platform.x),
+                platformY: Math.round(platform.y),
+                platformWidth: Math.round(platform.width),
+                platformHeight: Math.round(platform.height),
+                calculatedTopLeftX: Math.round(centerX - width / 2),
+                calculatedTopLeftY: Math.round(centerY - height / 2),
+                textureType,
+                cacheKey,
+                cacheHit: this.textureCache.has(cacheKey)
+            });
         }
         
-        // For regular platforms, use a simple distribution of textures
-        // This creates visual variety without complex edge detection
-        const platformId = platform.x + platform.y; // Simple hash based on position
+        // Check if texture is already cached
+        let texture = this.textureCache.get(cacheKey);
+        if (!texture) {
+            // Generate new texture
+            texture = this.generateObstacleTexture(obstacleType, width, height, platform, 'stone');
+            this.textureCache.set(cacheKey, texture);
+        }
         
-        switch (platform.clusterType) {
-            case 'stair':
-                // Alternate between side (bottom) and side rotated 90° (right edge)
-                const stairRotation = (platformId % 2 === 0) ? 0 : Math.PI / 2;
-                return { texture: 'obstacle_side', rotation: stairRotation };
-                
-            case 'overhang':
-                // Use corner texture with different rotations
-                const cornerRotations = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
-                const cornerIndex = Math.floor(platformId % 4);
-                return { texture: 'obstacle_corner', rotation: cornerRotations[cornerIndex] };
-                
-            case 'stack':
-                // Use inside texture (no rotation needed)
-                return { texture: 'obstacle_inside', rotation: 0 };
-                
-            case 'scattered':
-                // Mix of side textures with different rotations
-                const sideRotations = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
-                const sideIndex = Math.floor(platformId % 4);
-                return { texture: 'obstacle_side', rotation: sideRotations[sideIndex] };
-                
-            case 'strategic':
-                // Use corner texture with random rotation for variety
-                const strategicRotation = (platformId % 2 === 0) ? 0 : Math.PI;
-                return { texture: 'obstacle_corner', rotation: strategicRotation };
-                
-            default:
-                // Default to inside texture
-                return { texture: 'obstacle_inside', rotation: 0 };
+        // Draw the cached texture at top-left position (convert from center positioning)
+        // Ensure the texture is drawn at the exact size specified
+        const x = centerX - width / 2;
+        const y = centerY - height / 2;
+        this.ctx.drawImage(texture, x, y, width, height);
+        
+        // Debug: Add a colored border to each rendered platform to see overlaps
+        if (platform && (platformId === '425_-1150' || platformId === '453_800')) {
+            this.ctx.strokeStyle = platformId === '425_-1150' ? 'yellow' : 'cyan';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(x, y, width, height);
         }
     }
     
-    drawTileableTexture(texture, x, y, width, height, rotation = 0) {
-        if (!this.spritesLoaded || !this.sprites[texture]) {
-            // Fallback to solid color if texture not available
-            this.ctx.fillStyle = '#2c3e50';
-            this.ctx.fillRect(x, y, width, height);
-            return;
+    getBiomeForHeight(worldY) {
+        // Determine biome based on world height
+        // Lower Y values = higher altitude (since Y increases downward)
+        
+        if (worldY < -2000) {
+            return 'crystal'; // Very high altitude - crystal/ice
+        } else if (worldY < -1000) {
+            return 'stone'; // High altitude - stone
+        } else if (worldY < 0) {
+            return 'metal'; // Mid altitude - metal/industrial
+        } else if (worldY < 1000) {
+            return 'wood'; // Low altitude - wood/organic
+        } else {
+            return 'rock'; // Ground level - rock/earth
+        }
+    }
+    
+    generateObstacleTexture(obstacleType, width, height, platform = null, biome = 'stone') {
+        // Set up off-screen canvas for texture generation
+        this.offscreenCanvas.width = width;
+        this.offscreenCanvas.height = height;
+        const ctx = this.offscreenCtx;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        // Determine texture style based on obstacle type, platform properties, and biome
+        const textureStyle = this.getTextureStyle(obstacleType, platform, biome);
+        
+        // Generate base texture
+        this.drawBaseTexture(ctx, width, height, textureStyle);
+        
+        // Add surface details
+        this.drawSurfaceDetails(ctx, width, height, textureStyle);
+        
+        // Add borders and edges
+        this.drawBordersAndEdges(ctx, width, height, textureStyle);
+        
+        // Add size-appropriate details
+        this.drawSizeAppropriateDetails(ctx, width, height, textureStyle);
+        
+        return this.offscreenCanvas;
+    }
+    
+    getTextureStyle(obstacleType, platform, biome) {
+        // Emergency and boundary platforms override biome styling
+        if (platform?.emergency) {
+            return {
+                type: 'emergency',
+                baseColor: '#ff6b35',
+                accentColor: '#ffff00',
+                pattern: 'warning'
+            };
         }
         
-        const sprite = this.sprites[texture];
-        const tileWidth = sprite.width;
-        const tileHeight = sprite.height;
+        if (platform?.boundary) {
+            return {
+                type: 'boundary', 
+                baseColor: '#e74c3c',
+                accentColor: '#c0392b',
+                pattern: 'solid'
+            };
+        }
         
-        // Calculate how many tiles we need in each direction
-        const tilesX = Math.ceil(width / tileWidth);
-        const tilesY = Math.ceil(height / tileHeight);
-        
-        // Save current context state
-        this.ctx.save();
-        
-        // Create clipping region to prevent texture from going outside the platform bounds
-        this.ctx.beginPath();
-        this.ctx.rect(x, y, width, height);
-        this.ctx.clip();
-        
-        // Draw tiles to fill the entire platform area
-        for (let tileX = 0; tileX < tilesX; tileX++) {
-            for (let tileY = 0; tileY < tilesY; tileY++) {
-                // Use Math.floor to avoid sub-pixel positioning that causes gaps
-                const drawX = Math.floor(x + tileX * tileWidth);
-                const drawY = Math.floor(y + tileY * tileHeight);
+        // Use biome to determine material and colors
+        switch (biome) {
+            case 'crystal':
+                return {
+                    type: 'crystal',
+                    baseColor: '#3498db',
+                    accentColor: '#2980b9',
+                    pattern: 'crystal'
+                };
                 
-                // Apply rotation if specified
-                if (rotation !== 0) {
-                    this.ctx.save();
-                    this.ctx.translate(drawX + tileWidth/2, drawY + tileHeight/2);
-                    this.ctx.rotate(rotation);
-                    this.ctx.drawImage(
-                        sprite,
-                        -tileWidth/2,
-                        -tileHeight/2,
-                        tileWidth,
-                        tileHeight
-                    );
-                    this.ctx.restore();
-                } else {
-                    this.ctx.drawImage(
-                        sprite,
-                        drawX,
-                        drawY,
-                        tileWidth,
-                        tileHeight
-                    );
+            case 'stone':
+                return {
+                    type: 'stone',
+                    baseColor: '#7f8c8d',
+                    accentColor: '#95a5a6',
+                    pattern: 'stone'
+                };
+                
+            case 'metal':
+                return {
+                    type: 'metal',
+                    baseColor: '#34495e',
+                    accentColor: '#2c3e50',
+                    pattern: 'metal'
+                };
+                
+            case 'wood':
+                return {
+                    type: 'wood',
+                    baseColor: '#8b4513',
+                    accentColor: '#a0522d',
+                    pattern: 'wood'
+                };
+                
+            case 'rock':
+                return {
+                    type: 'rock',
+                    baseColor: '#696969',
+                    accentColor: '#808080',
+                    pattern: 'rock'
+                };
+                
+            default:
+                return {
+                    type: 'stone',
+                    baseColor: '#7f8c8d',
+                    accentColor: '#95a5a6',
+                    pattern: 'stone'
+                };
+        }
+    }
+    
+    drawBaseTexture(ctx, width, height, style) {
+        // Create gradient background
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, this.lightenColor(style.baseColor, 20));
+        gradient.addColorStop(0.5, style.baseColor);
+        gradient.addColorStop(1, this.darkenColor(style.baseColor, 20));
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Add texture pattern based on style
+        this.drawTexturePattern(ctx, width, height, style);
+    }
+    
+    drawTexturePattern(ctx, width, height, style) {
+        ctx.save();
+        
+        switch (style.pattern) {
+            case 'stone':
+                this.drawStonePattern(ctx, width, height, style);
+                break;
+            case 'metal':
+                this.drawMetalPattern(ctx, width, height, style);
+                break;
+            case 'wood':
+                this.drawWoodPattern(ctx, width, height, style);
+                break;
+            case 'rock':
+                this.drawRockPattern(ctx, width, height, style);
+                break;
+            case 'crystal':
+                this.drawCrystalPattern(ctx, width, height, style);
+                break;
+            case 'warning':
+                this.drawWarningPattern(ctx, width, height, style);
+                break;
+        }
+        
+        ctx.restore();
+    }
+    
+    drawStonePattern(ctx, width, height, style) {
+        // Draw stone-like cracks and texture
+        ctx.strokeStyle = this.darkenColor(style.baseColor, 30);
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.6;
+        
+        // Draw random cracks
+        for (let i = 0; i < Math.floor(width / 30); i++) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            const length = 10 + Math.random() * 20;
+            const angle = Math.random() * Math.PI * 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+            ctx.stroke();
+        }
+        
+        // Add speckled texture
+        ctx.fillStyle = this.darkenColor(style.baseColor, 40);
+        for (let i = 0; i < Math.floor(width * height / 200); i++) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            const size = 1 + Math.random() * 2;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    drawMetalPattern(ctx, width, height, style) {
+        // Draw metallic horizontal lines
+        ctx.strokeStyle = this.lightenColor(style.baseColor, 30);
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.8;
+        
+        for (let y = 0; y < height; y += 4) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
+        
+        // Add rivets for larger platforms
+        if (width > 100) {
+            ctx.fillStyle = this.darkenColor(style.baseColor, 40);
+            const rivetSize = 3;
+            const rivetSpacing = 40;
+            
+            for (let x = rivetSpacing; x < width - rivetSpacing; x += rivetSpacing) {
+                for (let y = rivetSpacing; y < height - rivetSpacing; y += rivetSpacing) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, rivetSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Highlight
+                    ctx.fillStyle = this.lightenColor(style.baseColor, 50);
+                    ctx.beginPath();
+                    ctx.arc(x - 1, y - 1, rivetSize * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = this.darkenColor(style.baseColor, 40);
                 }
             }
         }
+    }
+    
+    drawWoodPattern(ctx, width, height, style) {
+        // Draw wood grain
+        ctx.strokeStyle = this.darkenColor(style.baseColor, 20);
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.7;
         
-        // Restore context state
-        this.ctx.restore();
+        // Horizontal grain lines
+        for (let y = 0; y < height; y += 2 + Math.random() * 3) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            
+            // Create wavy grain line
+            for (let x = 0; x < width; x += 5) {
+                const waveY = y + Math.sin(x * 0.1) * 2;
+                ctx.lineTo(x, waveY);
+            }
+            ctx.stroke();
+        }
+        
+        // Add wood knots for larger platforms
+        if (width > 80) {
+            ctx.fillStyle = this.darkenColor(style.baseColor, 40);
+            const knotCount = Math.floor(width / 60);
+            
+            for (let i = 0; i < knotCount; i++) {
+                const x = (i + 0.5) * (width / knotCount);
+                const y = height / 2 + (Math.random() - 0.5) * (height * 0.4);
+                const size = 3 + Math.random() * 4;
+                
+                ctx.beginPath();
+                ctx.ellipse(x, y, size, size * 0.7, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+    
+    drawRockPattern(ctx, width, height, style) {
+        // Draw rough rock texture
+        ctx.fillStyle = this.darkenColor(style.baseColor, 30);
+        ctx.globalAlpha = 0.5;
+        
+        // Create irregular shapes
+        for (let i = 0; i < Math.floor(width * height / 300); i++) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            const size = 2 + Math.random() * 4;
+            
+            ctx.beginPath();
+            // Create irregular shape
+            for (let j = 0; j < 6; j++) {
+                const angle = (j / 6) * Math.PI * 2;
+                const radius = size * (0.8 + Math.random() * 0.4);
+                const px = x + Math.cos(angle) * radius;
+                const py = y + Math.sin(angle) * radius;
+                
+                if (j === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+    
+    drawCrystalPattern(ctx, width, height, style) {
+        // Draw crystal-like facets
+        ctx.strokeStyle = this.lightenColor(style.baseColor, 40);
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.8;
+        
+        // Draw facet lines
+        const facetCount = Math.floor(width / 20);
+        for (let i = 0; i < facetCount; i++) {
+            const x = (i + 0.5) * (width / facetCount);
+            const topY = Math.random() * height * 0.3;
+            const bottomY = height - Math.random() * height * 0.3;
+            
+            ctx.beginPath();
+            ctx.moveTo(x, topY);
+            ctx.lineTo(x, bottomY);
+            ctx.stroke();
+            
+            // Add diagonal facets
+            if (i > 0) {
+                const prevX = (i - 0.5) * (width / facetCount);
+                ctx.beginPath();
+                ctx.moveTo(prevX, height * 0.2);
+                ctx.lineTo(x, height * 0.8);
+                ctx.stroke();
+            }
+        }
+        
+        // Add sparkle effect
+        ctx.fillStyle = this.lightenColor(style.baseColor, 60);
+        for (let i = 0; i < Math.floor(width * height / 400); i++) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    drawWarningPattern(ctx, width, height, style) {
+        // Draw warning stripes
+        ctx.fillStyle = style.accentColor;
+        const stripeWidth = 8;
+        const stripeSpacing = 16;
+        
+        for (let x = 0; x < width + height; x += stripeSpacing) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x - height, height);
+            ctx.lineTo(x - height + stripeWidth, height);
+            ctx.lineTo(x + stripeWidth, 0);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+    
+    drawSurfaceDetails(ctx, width, height, style) {
+        // Add subtle surface noise
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = this.darkenColor(style.baseColor, 50);
+        
+        for (let i = 0; i < Math.floor(width * height / 100); i++) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 0.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    drawBordersAndEdges(ctx, width, height, style) {
+        // Draw border
+        ctx.strokeStyle = this.darkenColor(style.baseColor, 40);
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.8;
+        
+        ctx.strokeRect(1, 1, width - 2, height - 2);
+        
+        // Add top highlight
+        ctx.strokeStyle = this.lightenColor(style.baseColor, 40);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(width, 0);
+        ctx.stroke();
+        
+        // Add left highlight
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, height);
+        ctx.stroke();
+    }
+    
+    drawSizeAppropriateDetails(ctx, width, height, style) {
+        // Add more details to larger platforms
+        if (width > 150) {
+            // Add additional decorative elements for large platforms
+            ctx.globalAlpha = 0.3;
+            ctx.fillStyle = this.lightenColor(style.baseColor, 30);
+            
+            // Add corner decorations
+            const cornerSize = 8;
+            const positions = [
+                { x: cornerSize, y: cornerSize },
+                { x: width - cornerSize, y: cornerSize },
+                { x: cornerSize, y: height - cornerSize },
+                { x: width - cornerSize, y: height - cornerSize }
+            ];
+            
+            positions.forEach(pos => {
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, cornerSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+    }
+    
+    lightenColor(color, percent) {
+        const hex = color.replace('#', '');
+        const r = Math.min(255, parseInt(hex.substr(0, 2), 16) + percent);
+        const g = Math.min(255, parseInt(hex.substr(2, 2), 16) + percent);
+        const b = Math.min(255, parseInt(hex.substr(4, 2), 16) + percent);
+        
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+    
+    darkenColor(color, percent) {
+        const hex = color.replace('#', '');
+        const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - percent);
+        const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - percent);
+        const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - percent);
+        
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
     
     renderPlayer(player) {
