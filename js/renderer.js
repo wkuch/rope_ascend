@@ -144,7 +144,7 @@ class Renderer {
                 this.renderHazard(hazard);
                 this.renderPlayer(player);
                 this.renderRope(player, rope);
-                this.renderVelocityArrow(player);
+                // this.renderVelocityArrow(player); // Debug velocity arrow disabled
                 
                 this.ctx.restore();
                 
@@ -219,23 +219,7 @@ class Renderer {
             // Draw attachment point as kunai
             this.drawKunaiAttachment(attachmentPoint, playerPos, pivotPoints);
             
-            // Draw rope length indicator near attachment point
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = '12px monospace';
-            this.ctx.fillText(
-                `${Math.round(ropeLength)}px`, 
-                attachmentPoint.x + 8, 
-                attachmentPoint.y - 8
-            );
-            
-            // Debug: Show number of segments and pivots
-            this.ctx.fillStyle = '#FFFF00';
-            this.ctx.font = '12px monospace';
-            this.ctx.fillText(
-                `Segments: ${ropeSegments.length} | Pivots: ${pivotPoints.length}`, 
-                10, 
-                150
-            );
+            // Debug text removed for clean gameplay
         }
     }
     
@@ -486,39 +470,39 @@ class Renderer {
                 this.ctx.strokeRect(x, y, ceiling.width, ceiling.height);
             });
             
-            // Debug visualization - only show platform and ceiling bodies
-            chunk.physicsBodies.forEach(body => {
-                const pos = body.position;
-                const bounds = body.bounds;
-                const width = bounds.max.x - bounds.min.x;
-                const height = bounds.max.y - bounds.min.y;
-                
-                // Filter to only show platform and ceiling bodies
-                if (body.label && (body.label.includes('platform_') || body.label.includes('ceiling_'))) {
-                    // Use different colors for different types
-                    if (body.label.includes('platform_')) {
-                        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Red for platforms
-                    } else if (body.label.includes('ceiling_')) {
-                        this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)'; // Green for ceilings
-                    }
-                    
-                    this.ctx.fillRect(
-                        pos.x - width/2,
-                        pos.y - height/2,
-                        width,
-                        height
-                    );
-                    
-                    // Add label text for debugging
-                    this.ctx.fillStyle = 'white';
-                    this.ctx.font = '10px monospace';
-                    this.ctx.fillText(
-                        `${Math.round(width)}x${Math.round(height)}`,
-                        pos.x - width/2 + 2,
-                        pos.y - height/2 + 12
-                    );
-                }
-            });
+            // Debug visualization disabled - enable if needed for debugging
+            // chunk.physicsBodies.forEach(body => {
+            //     const pos = body.position;
+            //     const bounds = body.bounds;
+            //     const width = bounds.max.x - bounds.min.x;
+            //     const height = bounds.max.y - bounds.min.y;
+            //     
+            //     // Filter to only show platform and ceiling bodies
+            //     if (body.label && (body.label.includes('platform_') || body.label.includes('ceiling_'))) {
+            //         // Use different colors for different types
+            //         if (body.label.includes('platform_')) {
+            //             this.ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Red for platforms
+            //         } else if (body.label.includes('ceiling_')) {
+            //             this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)'; // Green for ceilings
+            //         }
+            //         
+            //         this.ctx.fillRect(
+            //             pos.x - width/2,
+            //             pos.y - height/2,
+            //             width,
+            //             height
+            //         );
+            //         
+            //         // Add label text for debugging
+            //         this.ctx.fillStyle = 'white';
+            //         this.ctx.font = '10px monospace';
+            //         this.ctx.fillText(
+            //             `${Math.round(width)}x${Math.round(height)}`,
+            //             pos.x - width/2 + 2,
+            //             pos.y - height/2 + 12
+            //         );
+            //     }
+            // });
         });
     }
     
@@ -544,15 +528,7 @@ class Renderer {
         const width = platform.width;
         const height = platform.height;
         
-        // Debug: Check if platform dimensions are consistent
-        const platformId = `${Math.round(centerX)}_${Math.round(centerY)}`;
-        if (platformId === '425_-1150' || platformId === '453_800') {
-            console.log('renderEnhancedPlatform:', {
-                platformId,
-                centerX, centerY, width, height,
-                originalPlatform: { x: platform.x, y: platform.y, width: platform.width, height: platform.height }
-            });
-        }
+        // Debug logging removed - issue resolved
         
         // Platform rendering is now handled by procedural generation
         
@@ -566,23 +542,7 @@ class Renderer {
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(x, y, width, height);
         
-        // Add cluster type indicators for debugging (small text)
-        if (platform.clusterType && platform.clusterType !== 'emergency') {
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = '8px monospace';
-            this.ctx.strokeStyle = '#000000';
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeText(
-                platform.clusterType.charAt(0).toUpperCase(), 
-                x + 4, 
-                y + height - 4
-            );
-            this.ctx.fillText(
-                platform.clusterType.charAt(0).toUpperCase(), 
-                x + 4, 
-                y + height - 4
-            );
-        }
+        // Cluster type indicators removed for clean visuals
     }
     
     adjustColor(color, amount) {
@@ -603,26 +563,7 @@ class Renderer {
         // Simplified cache key without biome
         const cacheKey = `${obstacleType}_${width}_${height}_${textureType}`;
         
-        // Debug logging - log specific platforms consistently
-        const platformId = `${Math.round(platform?.x || 0)}_${Math.round(platform?.y || 0)}`;
-        if (platform && (platformId === '425_-1150' || platformId === '453_800' || Math.random() < 0.01)) {
-            console.log('Platform rendering:', {
-                platformId,
-                centerX: Math.round(centerX),
-                centerY: Math.round(centerY), 
-                width: Math.round(width),
-                height: Math.round(height),
-                platformX: Math.round(platform.x),
-                platformY: Math.round(platform.y),
-                platformWidth: Math.round(platform.width),
-                platformHeight: Math.round(platform.height),
-                calculatedTopLeftX: Math.round(centerX - width / 2),
-                calculatedTopLeftY: Math.round(centerY - height / 2),
-                textureType,
-                cacheKey,
-                cacheHit: this.textureCache.has(cacheKey)
-            });
-        }
+        // Debug logging removed - issue resolved
         
         // Check if texture is already cached
         let texture = this.textureCache.get(cacheKey);
@@ -638,30 +579,9 @@ class Renderer {
         const y = centerY - height / 2;
         this.ctx.drawImage(texture, x, y, width, height);
         
-        // Debug: Add a colored border to each rendered platform to see overlaps
-        if (platform && (platformId === '425_-1150' || platformId === '453_800')) {
-            this.ctx.strokeStyle = platformId === '425_-1150' ? 'yellow' : 'cyan';
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeRect(x, y, width, height);
-        }
+        // Debug borders removed - issue resolved
     }
     
-    getBiomeForHeight(worldY) {
-        // Determine biome based on world height
-        // Lower Y values = higher altitude (since Y increases downward)
-        
-        if (worldY < -2000) {
-            return 'crystal'; // Very high altitude - crystal/ice
-        } else if (worldY < -1000) {
-            return 'stone'; // High altitude - stone
-        } else if (worldY < 0) {
-            return 'metal'; // Mid altitude - metal/industrial
-        } else if (worldY < 1000) {
-            return 'wood'; // Low altitude - wood/organic
-        } else {
-            return 'rock'; // Ground level - rock/earth
-        }
-    }
     
     generateObstacleTexture(obstacleType, width, height, platform = null, biome = 'stone') {
         // Set up off-screen canvas for texture generation
@@ -691,7 +611,7 @@ class Renderer {
     }
     
     getTextureStyle(obstacleType, platform, biome) {
-        // Emergency and boundary platforms override biome styling
+        // Emergency and boundary platforms use special styling
         if (platform?.emergency) {
             return {
                 type: 'emergency',
@@ -710,56 +630,13 @@ class Renderer {
             };
         }
         
-        // Use biome to determine material and colors
-        switch (biome) {
-            case 'crystal':
-                return {
-                    type: 'crystal',
-                    baseColor: '#3498db',
-                    accentColor: '#2980b9',
-                    pattern: 'crystal'
-                };
-                
-            case 'stone':
-                return {
-                    type: 'stone',
-                    baseColor: '#7f8c8d',
-                    accentColor: '#95a5a6',
-                    pattern: 'stone'
-                };
-                
-            case 'metal':
-                return {
-                    type: 'metal',
-                    baseColor: '#34495e',
-                    accentColor: '#2c3e50',
-                    pattern: 'metal'
-                };
-                
-            case 'wood':
-                return {
-                    type: 'wood',
-                    baseColor: '#8b4513',
-                    accentColor: '#a0522d',
-                    pattern: 'wood'
-                };
-                
-            case 'rock':
-                return {
-                    type: 'rock',
-                    baseColor: '#696969',
-                    accentColor: '#808080',
-                    pattern: 'rock'
-                };
-                
-            default:
-                return {
-                    type: 'stone',
-                    baseColor: '#7f8c8d',
-                    accentColor: '#95a5a6',
-                    pattern: 'stone'
-                };
-        }
+        // All regular platforms use grey stone texture
+        return {
+            type: 'stone',
+            baseColor: '#7f8c8d',
+            accentColor: '#95a5a6',
+            pattern: 'stone'
+        };
     }
     
     drawBaseTexture(ctx, width, height, style) {
