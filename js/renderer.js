@@ -15,6 +15,7 @@ class Renderer {
         this.textureCache = new Map();
         this.offscreenCanvas = document.createElement('canvas');
         this.offscreenCtx = this.offscreenCanvas.getContext('2d');
+        this.showPhysicsOverlay = true;
         
         //console.log('Renderer initialized with canvas:', canvas.width, 'x', canvas.height);
     }
@@ -142,6 +143,7 @@ class Renderer {
                 this.renderBoundaries(physics.getBoundaries());
                 this.renderWorld(world);
                 this.renderHazard(hazard);
+                this.renderPhysicsOverlay(physics);
                 this.renderPlayer(player);
                 this.renderRope(player, rope);
                 // this.renderVelocityArrow(player); // Debug velocity arrow disabled
@@ -176,6 +178,36 @@ class Renderer {
             this.drawLine(endX, endY, arrowX1, arrowY1, '#f39c12', 3);
             this.drawLine(endX, endY, arrowX2, arrowY2, '#f39c12', 3);
         }
+    }
+
+    renderPhysicsOverlay(physics) {
+        if (!this.showPhysicsOverlay || !physics) return;
+        
+        const bodies = Matter.Composite.allBodies(physics.getWorld());
+        
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+        this.ctx.lineWidth = 1;
+        
+        bodies.forEach(body => {
+            if (!body.isStatic) return;
+            
+            const parts = body.parts && body.parts.length > 1 ? body.parts.slice(1) : [body];
+            parts.forEach(part => {
+                const vertices = part.vertices;
+                if (!vertices || vertices.length === 0) return;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(vertices[0].x, vertices[0].y);
+                for (let i = 1; i < vertices.length; i++) {
+                    this.ctx.lineTo(vertices[i].x, vertices[i].y);
+                }
+                this.ctx.closePath();
+                this.ctx.stroke();
+            });
+        });
+        
+        this.ctx.restore();
     }
     
     renderRope(player, rope) {
@@ -446,29 +478,6 @@ class Renderer {
             // Render wall coordinates as connected lines (visual guide)
             this.renderWallCoordinates(chunk.leftWallCoords, '#34495e');
             this.renderWallCoordinates(chunk.rightWallCoords, '#34495e');
-            
-            // Render platforms with textures
-            chunk.platforms.forEach(platform => {
-                // Render platform with stone texture
-                this.renderEnhancedPlatform(platform);
-            });
-            
-            // Render ceilings
-            chunk.ceilings.forEach(ceiling => {
-                // Use center positioning to match physics bodies
-                const centerX = ceiling.x;
-                const centerY = ceiling.y;
-                
-                // Use procedural texture for ceilings
-                this.drawProceduralTexture('ceiling', centerX, centerY, ceiling.width, ceiling.height, ceiling);
-                
-                // Add subtle border
-                const x = centerX - ceiling.width/2;
-                const y = centerY - ceiling.height/2;
-                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-                this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(x, y, ceiling.width, ceiling.height);
-            });
             
             // Debug visualization disabled - enable if needed for debugging
             // chunk.physicsBodies.forEach(body => {

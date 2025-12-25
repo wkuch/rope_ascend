@@ -10,8 +10,8 @@ class WorldGenerator {
         this.baseWallWidth = 60;
         this.maxWallVariation = 40;
         this.noiseScale = 0.01;
-        this.minChasmWidth = 200;
-        this.maxChasmWidth = 400;
+        this.minChasmWidth = 420;
+        this.maxChasmWidth = 680;
         
         // Streaming performance tracking
         this.lastCameraY = 0;
@@ -55,17 +55,14 @@ class WorldGenerator {
         
         // Generate wall coordinates for this chunk
         this.generateWallCoordinates(chunk);
-        this.generatePlatforms(chunk);
-        this.generateCeilings(chunk);
-        
-        // Validate and ensure strategic anchor point placement
-        this.validateAnchorPoints(chunk);
+        chunk.platforms = [];
+        chunk.ceilings = [];
         
         // Create physics bodies from generated geometry
         this.createPhysicsBodies(chunk);
         
-        // Add chasm boundaries for this chunk
-        this.createChasmBoundaries(chunk);
+        // Add ground at bottom of chasm (only for chunks at or below ground level)
+        this.createGround(chunk);
         
         this.activeChunks.set(chunkId, chunk);
         this.chunksGenerated++;
@@ -76,22 +73,41 @@ class WorldGenerator {
     }
     
     generateWallCoordinates(chunk) {
-        const numPoints = 20; // Points per chunk height
+        const numPoints = 36; // More points for smoother walls
         const stepY = chunk.height / numPoints;
+        const leftFeatures = this.buildWallFeatures(chunk, 'left');
+        const rightFeatures = this.buildWallFeatures(chunk, 'right');
+        const baseMargin = 60;
         
         for (let i = 0; i <= numPoints; i++) {
             const y = chunk.y + i * stepY;
             
-            // Simple noise function for wall variation
-            const noiseValue = this.noise(y * this.noiseScale);
-            const variation = noiseValue * this.maxWallVariation;
+            // Base walls stay near edges with gentle drift
+            const baseNoise = this.noise(y * this.noiseScale * 0.3) * 4;
+            const leftBase = baseMargin + baseNoise;
+            const rightBase = this.chunkWidth - baseMargin + baseNoise;
             
-            // Left wall coordinates (x increases inward)
-            const leftX = this.baseWallWidth + variation;
+            const leftDepth = this.sampleWallFeatures(y, leftFeatures);
+            const rightDepth = this.sampleWallFeatures(y, rightFeatures);
+            
+            let leftX = leftBase + leftDepth;
+            let rightX = rightBase - rightDepth;
+            
+            // Add small organic wobble to avoid perfect flats
+            const wobbleLeft = this.noise(y * this.noiseScale * 2.0 + 1.4) * 2;
+            const wobbleRight = this.noise(y * this.noiseScale * 2.0 + 4.1) * 2;
+            leftX += wobbleLeft;
+            rightX -= wobbleRight;
+            
+            // Ensure minimum chasm width after outcroppings
+            const currentWidth = rightX - leftX;
+            if (currentWidth < this.minChasmWidth) {
+                const deficit = this.minChasmWidth - currentWidth;
+                leftX -= deficit / 2;
+                rightX += deficit / 2;
+            }
+            
             chunk.leftWallCoords.push({ x: leftX, y: y });
-            
-            // Right wall coordinates (x decreases inward)
-            const rightX = this.chunkWidth - this.baseWallWidth - variation;
             chunk.rightWallCoords.push({ x: rightX, y: y });
         }
     }
@@ -563,34 +579,54 @@ class WorldGenerator {
             chunk.physicsBodies.push(body);
         });
         
-        // Create physics bodies for walls using coordinate points
-        this.createWallPhysicsBodies(chunk, chunk.leftWallCoords, 'leftWall');
-        this.createWallPhysicsBodies(chunk, chunk.rightWallCoords, 'rightWall');
+        // Create wall bodies that follow the wall polyline
+        this.createWallSegmentBodies(chunk, chunk.leftWallCoords, chunk.rightWallCoords, 'leftWall');
+        this.createWallSegmentBodies(chunk, chunk.rightWallCoords, chunk.leftWallCoords, 'rightWall');
     }
     
-    createWallPhysicsBodies(chunk, wallCoords, wallType) {
-        if (wallCoords.length < 2) return;
+    createWallSegmentBodies(chunk, wallCoords, otherWallCoords, wallType) {
+        if (!wallCoords || wallCoords.length < 2) return;
         
-        // Create rectangular segments for each wall section
+        const wallThickness = 10;
+        
         for (let i = 0; i < wallCoords.length - 1; i++) {
             const p1 = wallCoords[i];
             const p2 = wallCoords[i + 1];
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const length = Math.hypot(dx, dy);
             
-            const centerX = (p1.x + p2.x) / 2;
-            const centerY = (p1.y + p2.y) / 2;
-            const width = Math.abs(p2.x - p1.x) + 20; // Add thickness
-            const height = Math.abs(p2.y - p1.y) + 20;
+            if (length < 0.001) continue;
             
-            // Skip very small segments
-            if (width < 10 && height < 10) continue;
+            let nx = -dy / length;
+            let ny = dx / length;
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            const otherX = this.getWallXAtY(otherWallCoords, midY);
+            const distMid = Math.abs(otherX - midX);
+            const testX = midX + nx * wallThickness;
+            const distTest = Math.abs(otherX - testX);
+            if (distTest < distMid) {
+                nx = -nx;
+                ny = -ny;
+            }
+            
+            const angle = Math.atan2(dy, dx);
+            const offsetX = nx * (wallThickness / 2);
+            const offsetY = ny * (wallThickness / 2);
+            const center = {
+                x: midX + offsetX,
+                y: (p1.y + p2.y) / 2 + offsetY
+            };
             
             const body = Matter.Bodies.rectangle(
-                centerX,
-                centerY,
-                Math.max(width, 20),
-                Math.max(height, 20),
+                center.x,
+                center.y,
+                length,
+                wallThickness,
                 {
                     isStatic: true,
+                    angle: angle,
                     label: `${wallType}_${chunk.id}_${i}`
                 }
             );
@@ -600,74 +636,22 @@ class WorldGenerator {
         }
     }
     
-    createChasmBoundaries(chunk) {
-        // Create left and right chasm walls based on generated coordinates
-        const wallThickness = 50;
+    createGround(chunk) {
+        if (chunk.y + chunk.height < 550) return;
         
-        // Create physics bodies for left wall segments
-        for (let i = 0; i < chunk.leftWallCoords.length - 1; i++) {
-            const p1 = chunk.leftWallCoords[i];
-            const p2 = chunk.leftWallCoords[i + 1];
-            
-            const centerX = (p1.x + p2.x) / 2 - wallThickness / 2; // Position wall outside chasm
-            const centerY = (p1.y + p2.y) / 2;
-            const height = Math.abs(p2.y - p1.y) + 10;
-            
-            const leftWallBody = Matter.Bodies.rectangle(
-                centerX,
-                centerY,
-                wallThickness,
-                Math.max(height, 20),
-                {
-                    isStatic: true,
-                    label: `leftChasmWall_${chunk.id}_${i}`
-                }
-            );
-            
-            this.physics.addBody(leftWallBody);
-            chunk.physicsBodies.push(leftWallBody);
-        }
+        const groundBody = Matter.Bodies.rectangle(
+            this.chunkWidth / 2,
+            chunk.y + chunk.height + 20,
+            this.chunkWidth,
+            40,
+            {
+                isStatic: true,
+                label: `ground_${chunk.id}`
+            }
+        );
         
-        // Create physics bodies for right wall segments
-        for (let i = 0; i < chunk.rightWallCoords.length - 1; i++) {
-            const p1 = chunk.rightWallCoords[i];
-            const p2 = chunk.rightWallCoords[i + 1];
-            
-            const centerX = (p1.x + p2.x) / 2 + wallThickness / 2; // Position wall outside chasm
-            const centerY = (p1.y + p2.y) / 2;
-            const height = Math.abs(p2.y - p1.y) + 10;
-            
-            const rightWallBody = Matter.Bodies.rectangle(
-                centerX,
-                centerY,
-                wallThickness,
-                Math.max(height, 20),
-                {
-                    isStatic: true,
-                    label: `rightChasmWall_${chunk.id}_${i}`
-                }
-            );
-            
-            this.physics.addBody(rightWallBody);
-            chunk.physicsBodies.push(rightWallBody);
-        }
-        
-        // Add ground at bottom of chasm (only for chunks at or below ground level)
-        if (chunk.y + chunk.height >= 550) {
-            const groundBody = Matter.Bodies.rectangle(
-                this.chunkWidth / 2,
-                chunk.y + chunk.height + 20,
-                this.chunkWidth,
-                40,
-                {
-                    isStatic: true,
-                    label: `ground_${chunk.id}`
-                }
-            );
-            
-            this.physics.addBody(groundBody);
-            chunk.physicsBodies.push(groundBody);
-        }
+        this.physics.addBody(groundBody);
+        chunk.physicsBodies.push(groundBody);
     }
     
     getActiveChunks() {
@@ -723,6 +707,77 @@ class WorldGenerator {
     // Simple noise function for wall variation
     noise(x) {
         return Math.sin(x * 2.7) * 0.3 + Math.sin(x * 5.1) * 0.2 + Math.sin(x * 8.3) * 0.1;
+    }
+    
+    hash(value) {
+        const s = Math.sin(value) * 43758.5453;
+        return s - Math.floor(s);
+    }
+    
+    buildWallFeatures(chunk, side) {
+        const features = [];
+        const seedBase = chunk.y * 0.01 + (side === 'left' ? 19.1 : 47.3);
+        const countRoll = this.hash(seedBase);
+        const featureCount = countRoll < 0.35 ? 0 : countRoll < 0.85 ? 1 : 2;
+        
+        for (let i = 0; i < featureCount; i++) {
+            const seed = seedBase + i * 3.17;
+            const typeRoll = this.hash(seed + 0.5);
+            const type = typeRoll < 0.75 ? 'lobe' : 'shelf';
+            const height = 140 + this.hash(seed + 1.2) * 220;
+            let startY = chunk.y + this.hash(seed + 2.3) * (chunk.height - height);
+            const depth = 140 + this.hash(seed + 3.7) * 180;
+            const ramp = 0.18 + this.hash(seed + 5.4) * 0.1;
+            
+            const endY = startY + height;
+            const overlap = features.some(feature => !(endY < feature.startY || startY > feature.endY));
+            if (overlap) {
+                startY = chunk.y + this.hash(seed + 5.1) * (chunk.height - height);
+            }
+            
+            features.push({
+                type,
+                startY,
+                endY: startY + height,
+                depth,
+                ramp
+            });
+        }
+        
+        return features;
+    }
+    
+    sampleWallFeatures(y, features) {
+        let total = 0;
+        
+        features.forEach(feature => {
+            if (y < feature.startY || y > feature.endY) return;
+            
+            const t = (y - feature.startY) / (feature.endY - feature.startY);
+            let strength = 0;
+            
+            if (feature.type === 'shelf') {
+                // Smooth ramp in/out with a broad middle plateau
+                const ramp = feature.ramp;
+                if (t < ramp) {
+                    const u = t / ramp;
+                    strength = u * u * (3 - 2 * u);
+                } else if (t > 1 - ramp) {
+                    const u = (1 - t) / ramp;
+                    strength = u * u * (3 - 2 * u);
+                } else {
+                    strength = 1;
+                }
+            } else {
+                // Lobe: rounded protrusion with a soft peak
+                const bump = Math.sin(t * Math.PI);
+                strength = Math.pow(bump, 1.2);
+            }
+            
+            total += feature.depth * strength;
+        });
+        
+        return total;
     }
     
     // Get chunks needed for current camera position

@@ -298,36 +298,32 @@ class Rope {
     }
     
     calculateBodyIntersection(start, end, body) {
-        // For rectangular bodies (our walls), calculate intersection with edges
-        const bounds = body.bounds;
         const intersections = [];
         
-        // Check intersection with each edge of the rectangle
-        const edges = [
-            { p1: { x: bounds.min.x, y: bounds.min.y }, p2: { x: bounds.max.x, y: bounds.min.y } }, // top
-            { p1: { x: bounds.max.x, y: bounds.min.y }, p2: { x: bounds.max.x, y: bounds.max.y } }, // right
-            { p1: { x: bounds.max.x, y: bounds.max.y }, p2: { x: bounds.min.x, y: bounds.max.y } }, // bottom
-            { p1: { x: bounds.min.x, y: bounds.max.y }, p2: { x: bounds.min.x, y: bounds.min.y } }  // left
-        ];
-        
-        for (const edge of edges) {
-            const intersection = this.lineIntersection(start, end, edge.p1, edge.p2);
-            if (intersection) {
-                intersections.push(intersection);
+        const parts = body.parts && body.parts.length > 1 ? body.parts.slice(1) : [body];
+        parts.forEach(part => {
+            const vertices = part.vertices;
+            for (let i = 0; i < vertices.length; i++) {
+                const v1 = vertices[i];
+                const v2 = vertices[(i + 1) % vertices.length];
+                const intersection = this.lineIntersection(start, end, v1, v2);
+                if (intersection) {
+                    intersections.push(intersection);
+                }
             }
+        });
+        
+        if (intersections.length === 0) {
+            return null;
         }
         
-        // Return the closest intersection point
-        if (intersections.length > 0) {
-            intersections.sort((a, b) => {
-                const distA = Math.sqrt(Math.pow(a.x - start.x, 2) + Math.pow(a.y - start.y, 2));
-                const distB = Math.sqrt(Math.pow(b.x - start.x, 2) + Math.pow(b.y - start.y, 2));
-                return distA - distB;
-            });
-            return intersections[0];
-        }
+        intersections.sort((a, b) => {
+            const distA = Math.sqrt(Math.pow(a.x - start.x, 2) + Math.pow(a.y - start.y, 2));
+            const distB = Math.sqrt(Math.pow(b.x - start.x, 2) + Math.pow(b.y - start.y, 2));
+            return distA - distB;
+        });
         
-        return null;
+        return intersections[0];
     }
     
     lineIntersection(p1, p2, p3, p4, eps = 1e-6) {
